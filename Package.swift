@@ -20,7 +20,7 @@ let package = Package(
             teamIdentifier: "67LX5VUZH5",
             displayVersion: "1.0",
             bundleVersion: "1",
-            appIcon: .placeholder(icon: .carrot),
+            appIcon: .placeholder(icon: .twoPeople),
             accentColor: .presetColor(.blue),
             supportedDeviceFamilies: [
                 .pad,
@@ -31,6 +31,10 @@ let package = Package(
                 .landscapeRight,
                 .landscapeLeft,
                 .portraitUpsideDown(.when(deviceFamilies: [.pad]))
+            ],
+            capabilities: [
+                .microphone(purposeString: "CueSense listens to sound levels and speech to provide social cues."),
+                .speechRecognition(purposeString: "CueSense analyzes speech on-device to help with conversation pacing.")
             ]
         )
     ],
@@ -40,5 +44,5 @@ let package = Package(
             path: "."
         )
     ],
-    swiftLanguageModes: [.v6]
+    swiftLanguageModes: [.version("6")]
 )
