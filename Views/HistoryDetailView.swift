@@ -13,7 +13,7 @@ struct HistoryDetailView: View {
                 HStack(spacing: 15) {
                     StatBox(title: "Duration", value: formatDuration(session.duration), icon: "clock", color: .blue)
                     StatBox(title: "Avg Tone", value: String(format: "%.1f", session.overallTone), icon: "waveform", color: .purple)
-                    StatBox(title: "Tone Type", value: session.toneLabel, icon: "face.smiling", color: toneColor())
+                    StatBox(title: "Tone Type", value: session.toneLabel ?? "Neutral", icon: "face.smiling", color: toneColor())
                 }
                 .padding(.horizontal)
                 
@@ -23,18 +23,18 @@ struct HistoryDetailView: View {
                         .font(.headline)
                         .foregroundStyle(.secondary)
                     
-                    if session.transcript.isEmpty {
+                    if let transcript = session.transcript, !transcript.isEmpty {
+                        Text(transcript)
+                            .padding()
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color.secondary.opacity(0.1))
+                            .cornerRadius(16)
+                    } else {
                         Text("No speech detected.")
                             .italic()
                             .foregroundStyle(.tertiary)
                             .padding()
                             .frame(maxWidth: .infinity, alignment: .center)
-                    } else {
-                        Text(session.transcript)
-                            .padding()
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Color.secondary.opacity(0.1))
-                            .cornerRadius(16)
                     }
                 }
                 .padding(.horizontal)

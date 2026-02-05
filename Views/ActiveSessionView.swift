@@ -14,6 +14,8 @@ struct ActiveSessionView: View {
     @State private var measure: String?
     @State private var currentTone: String = "Neutral"
     @State private var sentimentScore: Double = 0.0
+    @State private var socialCues: [String] = []
+    @State private var aiInsight: String?
     @State private var sessionStartTime: Date?
     
     // Haptics
@@ -70,12 +72,39 @@ struct ActiveSessionView: View {
                 
                 // Guidance Area
                 VStack(spacing: 15) {
+                    if let aiInsight = aiInsight, aiInsight != "None" {
+                        HStack {
+                            Image(systemName: "cpu.fill")
+                                .foregroundStyle(.blue)
+                            Text("AI Insight: \(aiInsight)")
+                                .font(.caption.bold())
+                                .foregroundStyle(.blue)
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(Color.blue.opacity(0.1))
+                        .clipShape(Capsule())
+                    }
+                    
                     if let guidance = guidance {
                         VStack(spacing: 12) {
                             Text(guidance)
                                 .font(.title3)
                                 .fontWeight(.bold)
                                 .foregroundColor(.white)
+                            
+                            if !socialCues.isEmpty {
+                                HStack {
+                                    ForEach(socialCues, id: \.self) { cue in
+                                        Text(cue)
+                                            .font(.system(size: 10, weight: .bold))
+                                            .padding(.horizontal, 8)
+                                            .padding(.vertical, 4)
+                                            .background(Color.white.opacity(0.1))
+                                            .cornerRadius(8)
+                                    }
+                                }
+                            }
                             
                             if let measure = measure {
                                 Text(measure)
@@ -143,6 +172,8 @@ struct ActiveSessionView: View {
         withAnimation(.spring()) {
             self.sentimentScore = result.sentimentScore
             self.currentTone = result.tone
+            self.socialCues = result.socialCues
+            self.aiInsight = result.aiInsight
             
             if self.guidance != result.guidance {
                 self.guidance = result.guidance

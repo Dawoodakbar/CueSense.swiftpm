@@ -7,8 +7,12 @@ struct AnalysisResult {
     let tone: String
     let guidance: String?
     let measure: String?
+    let socialCues: [String]
+    let aiInsight: String?
 }
 
+@available(iOS 17.0, *)
+@MainActor
 class AnalysisManager {
     private let tagger = NLTagger(tagSchemes: [.sentimentScore])
     
@@ -23,13 +27,17 @@ class AnalysisManager {
         let (sentiment, _) = tagger.tag(at: transcript.startIndex, unit: .paragraph, scheme: .sentimentScore)
         let score = Double(sentiment?.rawValue ?? "0") ?? 0.0
         
-        // 2. Pacing (Simple WPM)
+        // 2. CoreML Advanced Analysis
+        let socialCues = CoreMLManager.shared.getSocialCues(transcript: transcript)
+        let aiInsight = CoreMLManager.shared.analyzeIntent(transcript: transcript)
+        
+        // 3. Pacing (Simple WPM)
         let words = transcript.split(separator: " ")
         let wordCount = Double(words.count)
         let minutes = duration / 60.0
         let wpm = minutes > 0 ? wordCount / minutes : 0.0
         
-        // 3. Tone and Guidance
+        // 4. Tone and Guidance
         var tone = "Neutral"
         var guidance: String? = nil
         var measure: String? = nil
@@ -61,7 +69,9 @@ class AnalysisManager {
             pacing: wpm,
             tone: tone,
             guidance: guidance,
-            measure: measure
+            measure: measure,
+            socialCues: socialCues,
+            aiInsight: aiInsight
         )
     }
 }

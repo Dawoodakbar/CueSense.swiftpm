@@ -9,10 +9,10 @@ final class InteractionSession {
     var duration: TimeInterval
     var overallTone: Double
     var summary: String // Auto-generated brief or just "Interaction at 2 PM"
-    var transcript: String
-    var toneLabel: String
+    var transcript: String?
+    var toneLabel: String?
     
-    init(date: Date = Date(), duration: TimeInterval = 0, overallTone: Double = 0, summary: String = "", transcript: String = "", toneLabel: String = "Neutral") {
+    init(date: Date = Date(), duration: TimeInterval = 0, overallTone: Double = 0, summary: String = "", transcript: String? = "", toneLabel: String? = "Neutral") {
         self.id = UUID()
         self.date = date
         self.duration = duration

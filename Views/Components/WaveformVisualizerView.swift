@@ -9,7 +9,7 @@ struct WaveformVisualizerView: View {
                 RoundedRectangle(cornerRadius: 2)
                     .fill(barColor(for: samples[index]))
                     .frame(width: 4, height: max(6, CGFloat(samples[index]) * 150)) // Min height 6
-                    .animation(.spring(response: 0.1, dampingFraction: 0.8), value: samples[index])
+                    .animation(.interactiveSpring(response: 0.15, dampingFraction: 0.5, blendDuration: 0.1), value: samples[index])
             }
         }
         .frame(height: 160)

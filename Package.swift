@@ -43,6 +43,5 @@ let package = Package(
             name: "AppModule",
             path: "."
         )
-    ],
-    swiftLanguageModes: [.version("6")]
+    ]
 )

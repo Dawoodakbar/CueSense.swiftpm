@@ -7,14 +7,14 @@ import AVFoundation
 /// but utilizes nonisolated helpers to interact with system frameworks 
 /// that callback on background threads.
 @MainActor
-class SpeechManager: ObservableObject {
+final class SpeechManager: ObservableObject, Sendable {
     @Published var transcript: String = ""
     @Published var isRecording: Bool = false
     @Published var error: String?
     @Published var soundLevel: Float = 0.0
-    @Published var soundSamples: [Float] = Array(repeating: 0.0, count: 50)
+    @Published var soundSamples: [Float] = Array(repeating: 0, count: 80)
     
-    private let maxSamples = 50
+    private let maxSamples = 80
     
     private let audioEngine = AVAudioEngine()
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
@@ -22,29 +22,41 @@ class SpeechManager: ObservableObject {
     private let speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US"))
     
     /// Requests microphone and speech recognition permissions.
-    /// Marked nonisolated to allow the system to call back on any thread 
-    /// without violating MainActor constraints.
-    nonisolated func checkPermissions() {
-        SFSpeechRecognizer.requestAuthorization { status in
-            Task { @MainActor [weak self] in
-                guard let self = self else { return }
-                switch status {
-                case .authorized:
-                    break
-                case .denied, .restricted, .notDetermined:
-                    self.error = "Speech recognition permission is required."
-                @unknown default:
-                    self.error = "Unknown authorization status."
-                }
+    /// Requests microphone and speech recognition permissions.
+    func checkPermissions() {
+        Task {
+            let speechStatus = await SpeechManager.requestSpeechAuth()
+            let recordAllowed = await SpeechManager.requestRecordAuth()
+            
+            switch speechStatus {
+            case .authorized:
+                break
+            case .denied, .restricted, .notDetermined:
+                self.error = "Speech recognition permission is required."
+            @unknown default:
+                self.error = "Unknown authorization status."
+            }
+            
+            if !recordAllowed {
+                self.error = "Microphone permission is required."
             }
         }
-        
-        AVAudioSession.sharedInstance().requestRecordPermission { allowed in
-            Task { @MainActor [weak self] in
-                guard let self = self else { return }
-                if !allowed {
-                    self.error = "Microphone permission is required."
-                }
+    }
+    
+    // MARK: - Static Permission Helpers
+    
+    nonisolated private static func requestSpeechAuth() async -> SFSpeechRecognizerAuthorizationStatus {
+        await withCheckedContinuation { continuation in
+            SFSpeechRecognizer.requestAuthorization { status in
+                continuation.resume(returning: status)
+            }
+        }
+    }
+    
+    nonisolated private static func requestRecordAuth() async -> Bool {
+        await withCheckedContinuation { continuation in
+            AVAudioSession.sharedInstance().requestRecordPermission { allowed in
+                continuation.resume(returning: allowed)
             }
         }
     }
@@ -64,8 +76,9 @@ class SpeechManager: ObservableObject {
         
         do {
             let audioSession = AVAudioSession.sharedInstance()
-            try audioSession.setCategory(.record, mode: .measurement, options: [.duckOthers, .defaultToSpeaker])
+            try audioSession.setCategory(.playAndRecord, mode: .measurement, options: [.duckOthers, .defaultToSpeaker])
             try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
+            print("Audio Session configured: playAndRecord")
         } catch {
             self.error = "Audio session error: \(error.localizedDescription)"
             return
@@ -77,65 +90,32 @@ class SpeechManager: ObservableObject {
         request.shouldReportPartialResults = true
         
         let inputNode = audioEngine.inputNode
-        
-        // We use a non-isolated task reference to avoid closure isolation issues
-        recognitionTask = recognizer.recognitionTask(with: request) { [weak self] result, error in
-            guard let self = self else { return }
-            
-            // Move back to MainActor for property updates
-            Task { @MainActor [weak self] in
-                guard let self = self else { return }
-                
-                if let result = result {
-                    self.transcript = result.bestTranscription.formattedString
-                }
-                
-                if let error = error {
-                    let nsError = error as NSError
-                    // Code 216 is a user-initiated cancellation, not an error
-                    if nsError.domain == "kAFAssistantErrorDomain" && nsError.code == 216 {
-                        return
-                    }
-                    print("Speech Task Error: \(error.localizedDescription)")
-                    self.stopRecording()
-                }
-            }
-        }
-        
         let recordingFormat = inputNode.outputFormat(forBus: 0)
+        
         guard recordingFormat.sampleRate > 0 else {
             self.error = "Invalid audio format."
             return
         }
         
+        // Remove existing tap if any
         inputNode.removeTap(onBus: 0)
         
-        // Install tap using a closure that safely captures self nonisolatedly
-        inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { [weak self] buffer, _ in
-            guard let self = self else { return }
-            
-            // Recognition request append is thread-safe
-            self.recognitionRequest?.append(buffer)
-            
-            // Level calculation is heavy, do it on the background tap thread
-            let level = self.calculateRMS(buffer: buffer)
-            
-            // Dispatch UI update
-            Task { @MainActor [weak self] in
-                guard let self = self else { return }
-                let scaledLevel = min(max(level * 20.0, 0), 1.0) // Increased gain for visibility
-                if scaledLevel > 0.01 {
-                    print("Sound Level: \(scaledLevel)")
-                }
-                self.soundLevel = scaledLevel
-                
-                // Add to samples for waveform
-                self.soundSamples.append(scaledLevel)
-                if self.soundSamples.count > self.maxSamples {
-                    self.soundSamples.removeFirst()
-                }
-            }
-        }
+        // 1. Start Recognition Task (Non-isolated creation)
+        let managerWrapper = UncheckedSendable(self)
+        recognitionTask = SpeechManager.startRecognitionTask(
+            recognizer: recognizer,
+            request: request,
+            managerWrapper: managerWrapper
+        )
+        
+        // 2. Install Audio Tap (Non-isolated installation)
+        let requestWrapper = UncheckedSendable(request)
+        SpeechManager.installAudioTap(
+            inputNode: inputNode,
+            format: recordingFormat,
+            requestWrapper: requestWrapper,
+            managerWrapper: managerWrapper
+        )
         
         audioEngine.prepare()
         
@@ -147,6 +127,77 @@ class SpeechManager: ObservableObject {
             self.stopRecording()
         }
     }
+    
+    // MARK: - Safe State Updates
+    
+    func processSpeechResult(_ transcript: String?, error: Error?) {
+        if let transcript = transcript {
+            self.transcript = transcript
+        }
+        
+        if let error = error {
+            let nsError = error as NSError
+            if nsError.domain == "kAFAssistantErrorDomain" && nsError.code == 216 {
+                return
+            }
+            print("Speech Task Error: \(error.localizedDescription)")
+            self.stopRecording()
+        }
+    }
+    
+    func processAudioLevel(_ level: Float) {
+        let scaledLevel = min(max(level * 20.0, 0), 1.0)
+        if scaledLevel > 0.01 {
+            // print("Sound Level: \(scaledLevel)") // Reduce log noise
+        }
+        self.soundLevel = scaledLevel
+        
+        self.soundSamples.append(scaledLevel)
+        if self.soundSamples.count > 80 {
+            self.soundSamples.removeFirst()
+        }
+    }
+    
+    // MARK: - Non-isolated Background Helpers
+    
+    nonisolated private static func startRecognitionTask(
+        recognizer: SFSpeechRecognizer,
+        request: SFSpeechAudioBufferRecognitionRequest,
+        managerWrapper: UncheckedSendable<SpeechManager>
+    ) -> SFSpeechRecognitionTask {
+        return recognizer.recognitionTask(with: request) { result, error in
+            let transcript = result?.bestTranscription.formattedString
+            Task { @MainActor in
+                managerWrapper.value.processSpeechResult(transcript, error: error)
+            }
+        }
+    }
+    
+    nonisolated private static func installAudioTap(
+        inputNode: AVAudioInputNode,
+        format: AVAudioFormat,
+        requestWrapper: UncheckedSendable<SFSpeechAudioBufferRecognitionRequest>,
+        managerWrapper: UncheckedSendable<SpeechManager>
+    ) {
+        inputNode.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in
+            requestWrapper.value.append(buffer)
+            let level = SpeechManager.calculateRMS(buffer: buffer)
+            
+            Task { @MainActor in
+                managerWrapper.value.processAudioLevel(level)
+            }
+        }
+    }
+
+
+/// A wrapper to silence strict concurrency warnings for types that are known to be safe in a specific context
+/// but are not marked Sendable (like SFSpeechAudioBufferRecognitionRequest).
+struct UncheckedSendable<T>: @unchecked Sendable {
+    let value: T
+    init(_ value: T) {
+        self.value = value
+    }
+}
     
     /// Stops the audio engine and cancels the recognition task.
     func stopRecording() {
@@ -166,7 +217,7 @@ class SpeechManager: ObservableObject {
     }
     
     /// Calculate RMS on a background thread for performance.
-    nonisolated private func calculateRMS(buffer: AVAudioPCMBuffer) -> Float {
+    nonisolated static func calculateRMS(buffer: AVAudioPCMBuffer) -> Float {
         guard let channelData = buffer.floatChannelData?[0] else { return 0 }
         let channelDataValue = Array(UnsafeBufferPointer(start: channelData, count: Int(buffer.frameLength)))
         

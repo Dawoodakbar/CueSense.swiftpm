@@ -88,7 +88,7 @@ struct HomeView: View {
                                             Text(session.date.formatted(date: .abbreviated, time: .shortened))
                                                 .font(.body)
                                                 .foregroundStyle(.primary)
-                                            Text(String(format: "%.1f min • Tone: %@", session.duration / 60, session.toneLabel))
+                                            Text(String(format: "%.1f min • Tone: %@", session.duration / 60, session.toneLabel ?? "Neutral"))
                                                 .font(.caption)
                                                 .foregroundStyle(.secondary)
                                         }
