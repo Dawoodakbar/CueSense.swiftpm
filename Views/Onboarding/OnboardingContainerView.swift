@@ -8,9 +8,11 @@ struct OnboardingContainerView: View {
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     
     @State private var currentPage = 0
-    @State private var interests = ""
-    @State private var conversationTopics = ""
-    @State private var improvementGoals = ""
+    @State private var favoriteTopics = ""
+    @State private var improvementAreas: [String] = []
+    @State private var comfortFactors: [String] = []
+    @State private var conversationalFeeling = ""
+    @State private var afterConversationFeeling: [String] = []
     
     var body: some View {
         TabView(selection: $currentPage) {
@@ -22,9 +24,11 @@ struct OnboardingContainerView: View {
             .tag(0)
             
             OnboardingProfileView(
-                interests: $interests,
-                conversationTopics: $conversationTopics,
-                improvementGoals: $improvementGoals
+                favoriteTopics: $favoriteTopics,
+                improvementAreas: $improvementAreas,
+                comfortFactors: $comfortFactors,
+                conversationalFeeling: $conversationalFeeling,
+                afterConversationFeeling: $afterConversationFeeling
             ) {
                 saveProfileAndComplete()
             }
@@ -37,9 +41,11 @@ struct OnboardingContainerView: View {
     private func saveProfileAndComplete() {
         // Create and save user profile
         let profile = UserProfile(
-            interests: interests,
-            conversationTopics: conversationTopics,
-            improvementGoals: improvementGoals,
+            favoriteTopics: favoriteTopics,
+            improvementAreas: improvementAreas,
+            comfortFactors: comfortFactors,
+            conversationalFeeling: conversationalFeeling,
+            afterConversationFeeling: afterConversationFeeling.joined(separator: ", "),
             hasCompletedOnboarding: true
         )
         

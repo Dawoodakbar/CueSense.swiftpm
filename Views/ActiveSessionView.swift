@@ -3,10 +3,16 @@ import SwiftData
 import CoreHaptics
 
 @available(iOS 17, *)
+@available(iOS 17, *)
 struct ActiveSessionView: View {
     @EnvironmentObject var speechManager: SpeechManager
-    @Binding var currentTab: Int
+    @Binding var isPresented: Bool
     @Environment(\.modelContext) private var modelContext
+    @Query private var profiles: [UserProfile]
+    
+    private var userProfile: UserProfile? {
+        profiles.first
+    }
     
     // Analysis
     private let analysisManager = AnalysisManager()
@@ -18,38 +24,47 @@ struct ActiveSessionView: View {
     @State private var aiInsight: String?
     @State private var sessionStartTime: Date?
     
+    // Extra analysis result for saving
+    @State private var lastAnalysisResult: AnalysisResult?
+    
     // Haptics
     @State private var engine: CHHapticEngine?
     
-    // Timer for periodic analysis
-    let timer = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
+    // Timer for periodic analysis - Faster updates
+    let timer = Timer.publish(every: 1.0, on: .main, in: .common).autoconnect()
     
     var body: some View {
         ZStack {
             // Background
-            Color.black.opacity(0.9).ignoresSafeArea()
+            Color.black.ignoresSafeArea()
             
-            // Background fluid Gradient
+            // Background fluid Gradient - Blue dominant
             RadialGradient(gradient: Gradient(colors: [
-                Color.blue.opacity(0.3 + sentimentScore * 0.2), // Shift color based on sentiment
+                Color.blue.opacity(0.4),
                 Color.black
-            ]), center: .center, startRadius: 50, endRadius: 400)
+            ]), center: .center, startRadius: 50, endRadius: 500)
             .ignoresSafeArea()
+            .overlay(
+                Rectangle()
+                    .fill(.ultraThinMaterial)
+                    .opacity(0.1)
+            )
             
             VStack {
                 // Header
                 HStack {
                     Image(systemName: "recordingtape")
-                        .foregroundStyle(.red)
+                        .foregroundStyle(.blue) 
                     Text("Listening...")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.blue.opacity(0.8)) 
                     Spacer()
                     Text(sessionStartTime ?? Date(), style: .timer)
                         .font(.monospacedDigit(.body)())
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.white)
                 }
                 .padding()
+                .background(.ultraThinMaterial)
                 
                 Spacer()
                 
@@ -57,15 +72,15 @@ struct ActiveSessionView: View {
                 WaveformVisualizerView(samples: speechManager.soundSamples)
                     .frame(height: 160)
                 
-                // Live Tone Badge
+                // Live Tone Badge 
                 Text(currentTone.uppercased())
                     .font(.caption.bold())
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
-                    .background(toneColor().opacity(0.2))
-                    .foregroundStyle(toneColor())
+                    .background(.ultraThinMaterial)
+                    .foregroundStyle(.white)
                     .clipShape(Capsule())
-                    .overlay(Capsule().stroke(toneColor().opacity(0.5), lineWidth: 1))
+                    .overlay(Capsule().stroke(toneColor(), lineWidth: 1))
                     .padding(.top, 10)
                 
                 Spacer()
@@ -76,14 +91,15 @@ struct ActiveSessionView: View {
                         HStack {
                             Image(systemName: "cpu.fill")
                                 .foregroundStyle(.blue)
-                            Text("AI Insight: \(aiInsight)")
+                            Text(aiInsight)
                                 .font(.caption.bold())
-                                .foregroundStyle(.blue)
+                                .foregroundStyle(.white)
                         }
                         .padding(.horizontal, 10)
                         .padding(.vertical, 4)
-                        .background(Color.blue.opacity(0.1))
+                        .background(.ultraThinMaterial)
                         .clipShape(Capsule())
+                        .overlay(Capsule().stroke(Color.blue.opacity(0.5), lineWidth: 1))
                     }
                     
                     if let guidance = guidance {
@@ -100,7 +116,7 @@ struct ActiveSessionView: View {
                                             .font(.system(size: 10, weight: .bold))
                                             .padding(.horizontal, 8)
                                             .padding(.vertical, 4)
-                                            .background(Color.white.opacity(0.1))
+                                            .background(Color.blue.opacity(0.2)) 
                                             .cornerRadius(8)
                                     }
                                 }
@@ -109,7 +125,7 @@ struct ActiveSessionView: View {
                             if let measure = measure {
                                 Text(measure)
                                     .font(.subheadline)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(.white.opacity(0.8))
                                     .multilineTextAlignment(.center)
                             }
                         }
@@ -119,14 +135,14 @@ struct ActiveSessionView: View {
                         .cornerRadius(20)
                         .overlay(
                             RoundedRectangle(cornerRadius: 20)
-                                .stroke(toneColor().opacity(0.3), lineWidth: 1)
+                                .stroke(Color.blue.opacity(0.3), lineWidth: 1) 
                         )
                         .transition(.scale.combined(with: .opacity))
                         .onAppear { triggerHaptic() }
                     } else {
                         Text("Monitoring...")
                             .font(.headline)
-                            .foregroundStyle(.tertiary)
+                            .foregroundStyle(.white.opacity(0.5))
                             .padding()
                     }
                 }
@@ -138,11 +154,12 @@ struct ActiveSessionView: View {
                 Button(action: endSession) {
                     Text("End Session")
                         .font(.title3.bold())
-                        .foregroundStyle(.black)
+                        .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(Color.white)
+                        .background(Color.red.opacity(0.8)) 
                         .cornerRadius(30)
+                        .shadow(radius: 10)
                 }
                 .padding(.horizontal, 40)
                 .padding(.bottom, 20)
@@ -157,7 +174,6 @@ struct ActiveSessionView: View {
         }
         .onChange(of: speechManager.isRecording) { newValue in
             if !newValue {
-                // If recording stopped externally or error
                 endSession()
             }
         }
@@ -167,13 +183,18 @@ struct ActiveSessionView: View {
         guard let start = sessionStartTime else { return }
         let duration = Date().timeIntervalSince(start)
         
-        let result = analysisManager.analyze(transcript: speechManager.transcript, duration: duration)
+        let result = analysisManager.analyze(
+            transcript: speechManager.transcript, 
+            duration: duration, 
+            userProfile: userProfile
+        )
         
         withAnimation(.spring()) {
             self.sentimentScore = result.sentimentScore
             self.currentTone = result.tone
             self.socialCues = result.socialCues
             self.aiInsight = result.aiInsight
+            self.lastAnalysisResult = result
             
             if self.guidance != result.guidance {
                 self.guidance = result.guidance
@@ -188,29 +209,33 @@ struct ActiveSessionView: View {
         case "Positive": return .green
         case "Rushed": return .orange
         case "Engaged": return .blue
-        default: return .secondary
+        default: return .white
         }
     }
     
     private func endSession() {
+        guard speechManager.isRecording else { return }
         speechManager.stopRecording()
         
-        // Save Session
         if let start = sessionStartTime {
             let duration = Date().timeIntervalSince(start)
             let newSession = InteractionSession(
                 date: start,
                 duration: duration,
                 overallTone: sentimentScore,
-                summary: speechManager.transcript.isEmpty ? "Quiet session" : "Conversation detected",
+                summary: lastAnalysisResult?.analysisTitle ?? (speechManager.transcript.isEmpty ? "Quiet session" : "Conversation detected"),
                 transcript: speechManager.transcript,
-                toneLabel: currentTone
+                toneLabel: currentTone,
+                topic: lastAnalysisResult?.topic,
+                analysisTitle: lastAnalysisResult?.analysisTitle,
+                improvementTips: lastAnalysisResult?.improvementTips ?? [],
+                conversationStarters: lastAnalysisResult?.conversationStarters ?? []
             )
             modelContext.insert(newSession)
         }
         
         withAnimation {
-            currentTab = 0
+            isPresented = false
         }
     }
     

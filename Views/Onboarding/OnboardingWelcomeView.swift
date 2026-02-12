@@ -17,14 +17,21 @@ struct OnboardingWelcomeView: View {
             Spacer()
             
             // Description
-            VStack(spacing: 16) {
-                Text("Asperger's Syndrome is a form of autism that affects social interactions and communication, while often bringing unique strengths such as focus and passion for specific interests.")
-                    .font(.body)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 32)
-                    .lineSpacing(4)
+            ScrollView {
+                VStack(spacing: 20) {
+                    Text("Asperger’s Syndrome")
+                        .font(.title3.bold())
+                        .foregroundStyle(.primary)
+                    
+                    Text("Asperger’s syndrome is a condition that affects how people talk, interact with others, and understand the world around them. People with Asperger’s usually have above-average intelligence and strong language skills, but they may have trouble understanding social cues, body language, or other people’s feelings. Many also have strong interests in certain topics which can lead to unhealthy obsessions.")
+                        .font(.body)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.leading)
+                        .lineSpacing(6)
+                }
+                .padding(.horizontal, 32)
             }
+            .frame(maxHeight: 300)
             
             Spacer()
             

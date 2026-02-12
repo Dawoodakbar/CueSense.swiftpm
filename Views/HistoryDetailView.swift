@@ -9,6 +9,20 @@ struct HistoryDetailView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 25) {
+                // Analysis Header
+                VStack(spacing: 8) {
+                    Text(session.analysisTitle ?? "Conversation Analysis")
+                        .font(.title2.bold())
+                        .multilineTextAlignment(.center)
+                    
+                    if let topic = session.topic {
+                        Text("Topic: \(topic)")
+                            .font(.headline)
+                            .foregroundStyle(.blue)
+                    }
+                }
+                .padding(.top)
+                
                 // Header Stats
                 HStack(spacing: 15) {
                     StatBox(title: "Duration", value: formatDuration(session.duration), icon: "clock", color: .blue)
@@ -17,26 +31,79 @@ struct HistoryDetailView: View {
                 }
                 .padding(.horizontal)
                 
-                // Analytics Section
-                VStack(alignment: .leading, spacing: 15) {
-                    Label("Conversation Transcript", systemImage: "quote.bubble.fill")
-                        .font(.headline)
-                        .foregroundStyle(.secondary)
-                    
+                // Improvement Tips
+                if !session.improvementTips.isEmpty {
+                    VStack(alignment: .leading, spacing: 15) {
+                        Label("Things to Improve", systemImage: "arrow.up.heart.fill")
+                            .font(.headline)
+                            .foregroundStyle(.green)
+                        
+                        VStack(alignment: .leading, spacing: 10) {
+                            ForEach(session.improvementTips, id: \.self) { tip in
+                                HStack(alignment: .top, spacing: 10) {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundStyle(.green)
+                                    Text(tip)
+                                        .font(.subheadline)
+                                }
+                                .padding()
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(Color.green.opacity(0.05))
+                                .cornerRadius(12)
+                            }
+                        }
+                    }
+                    .padding(.horizontal)
+                }
+                
+                // Conversation Starters
+                if !session.conversationStarters.isEmpty {
+                    VStack(alignment: .leading, spacing: 15) {
+                        Label("Conversation Starters", systemImage: "sparkles")
+                            .font(.headline)
+                            .foregroundStyle(.blue)
+                        
+                        VStack(alignment: .leading, spacing: 10) {
+                            ForEach(session.conversationStarters, id: \.self) { starter in
+                                Text(starter)
+                                    .font(.subheadline.italic())
+                                    .padding()
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .background(Color.blue.opacity(0.05))
+                                    .cornerRadius(12)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(Color.blue.opacity(0.1), lineWidth: 1)
+                                    )
+                            }
+                        }
+                    }
+                    .padding(.horizontal)
+                }
+                
+                // Transcript Section (Collapsible or secondary)
+                DisclosureGroup {
                     if let transcript = session.transcript, !transcript.isEmpty {
                         Text(transcript)
                             .padding()
+                            .font(.body)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Color.secondary.opacity(0.1))
+                            .background(.ultraThinMaterial)
                             .cornerRadius(16)
                     } else {
                         Text("No speech detected.")
                             .italic()
                             .foregroundStyle(.tertiary)
                             .padding()
-                            .frame(maxWidth: .infinity, alignment: .center)
                     }
+                } label: {
+                    Label("Conversation Transcript", systemImage: "quote.bubble.fill")
+                        .font(.headline)
+                        .foregroundStyle(.secondary)
                 }
+                .padding(.horizontal)
+                .padding(.vertical, 10)
+                .background(RoundedRectangle(cornerRadius: 16).fill(Color.white.opacity(0.3)))
                 .padding(.horizontal)
                 
                 // Actions
@@ -46,6 +113,7 @@ struct HistoryDetailView: View {
                         .padding()
                         .frame(maxWidth: .infinity)
                         .background(Color.red.opacity(0.1))
+                        .foregroundStyle(.red)
                         .cornerRadius(12)
                 }
                 .padding(.horizontal)
@@ -55,6 +123,7 @@ struct HistoryDetailView: View {
             }
             .padding(.top)
         }
+        .background(Color.blue.opacity(0.05).ignoresSafeArea())
         .navigationTitle(session.date.formatted(date: .abbreviated, time: .shortened))
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -102,7 +171,8 @@ struct StatBox: View {
         }
         .frame(maxWidth: .infinity)
         .padding()
-        .background(Color.secondary.opacity(0.05))
+        .background(.ultraThinMaterial)
         .cornerRadius(15)
+        .shadow(color: .black.opacity(0.05), radius: 5, x: 0, y: 2)
     }
 }
