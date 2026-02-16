@@ -21,7 +21,7 @@ struct ProfileView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                Color.blue.opacity(0.05).ignoresSafeArea()
+                Theme.primary.opacity(0.05).ignoresSafeArea()
                 
                 ScrollView {
                     VStack(spacing: 32) {
@@ -29,9 +29,9 @@ struct ProfileView: View {
                         VStack(spacing: 16) {
                             ZStack {
                                 Circle()
-                                    .fill(LinearGradient(colors: [.blue, .purple], startPoint: .topLeading, endPoint: .bottomTrailing))
+                                    .fill(LinearGradient(colors: [Theme.primary, .purple], startPoint: .topLeading, endPoint: .bottomTrailing))
                                     .frame(width: 100, height: 100)
-                                    .shadow(color: .blue.opacity(0.2), radius: 10, x: 0, y: 5)
+                                    .shadow(color: Theme.primary.opacity(0.2), radius: 10, x: 0, y: 5)
                                 
                                 Image(systemName: "person.fill")
                                     .font(.system(size: 50))
@@ -139,7 +139,7 @@ struct ProfileEditSection: View {
         VStack(alignment: .leading, spacing: 12) {
             Label(title, systemImage: icon)
                 .font(.headline)
-                .foregroundStyle(.blue)
+                .foregroundStyle(Theme.primary)
             
             if isEditing {
                 TextField("Enter...", text: $content, axis: .vertical)
@@ -148,7 +148,7 @@ struct ProfileEditSection: View {
                     .cornerRadius(12)
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
-                            .stroke(Color.blue.opacity(0.1), lineWidth: 1)
+                            .stroke(Theme.primary.opacity(0.1), lineWidth: 1)
                     )
             } else {
                 Text(content.isEmpty ? "Not set" : content)
@@ -173,7 +173,7 @@ struct ProfileMultiSelectionSection: View {
         VStack(alignment: .leading, spacing: 12) {
             Label(title, systemImage: icon)
                 .font(.headline)
-                .foregroundStyle(.blue)
+                .foregroundStyle(Theme.primary)
             
             if isEditing {
                 FlowLayout(spacing: 8) {
@@ -190,8 +190,8 @@ struct ProfileMultiSelectionSection: View {
                                 .font(.caption.weight(isSelected ? .semibold : .regular))
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 8)
-                                .background(isSelected ? Color.blue.opacity(0.1) : Color(.systemGray6))
-                                .foregroundColor(isSelected ? .blue : .primary)
+                                .background(isSelected ? Theme.primary.opacity(0.1) : Color(.systemGray6))
+                                .foregroundColor(isSelected ? Theme.primary : .primary)
                                 .cornerRadius(15)
                         }
                     }
@@ -211,8 +211,8 @@ struct ProfileMultiSelectionSection: View {
                                 .font(.caption.weight(.medium))
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 8)
-                                .background(.blue.opacity(0.05))
-                                .foregroundColor(.blue)
+                                .background(Theme.primary.opacity(0.05))
+                                .foregroundColor(Theme.primary)
                                 .cornerRadius(15)
                         }
                     }
@@ -237,7 +237,7 @@ struct ProfileSingleSelectionSection: View {
         VStack(alignment: .leading, spacing: 12) {
             Label(title, systemImage: icon)
                 .font(.headline)
-                .foregroundStyle(.blue)
+                .foregroundStyle(Theme.primary)
             
             if isEditing {
                 FlowLayout(spacing: 8) {
@@ -250,8 +250,8 @@ struct ProfileSingleSelectionSection: View {
                                 .font(.caption.weight(isSelected ? .semibold : .regular))
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 8)
-                                .background(isSelected ? Color.blue.opacity(0.1) : Color(.systemGray6))
-                                .foregroundColor(isSelected ? .blue : .primary)
+                                .background(isSelected ? Theme.primary.opacity(0.1) : Color(.systemGray6))
+                                .foregroundColor(isSelected ? Theme.primary : .primary)
                                 .cornerRadius(15)
                         }
                     }

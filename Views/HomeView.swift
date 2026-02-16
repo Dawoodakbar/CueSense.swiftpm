@@ -8,79 +8,83 @@ struct HomeView: View {
     
     var body: some View {
         ZStack {
-            // Background Layer
-            Color.white.ignoresSafeArea()
+            // Background image from assets
+            Image("background")
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .ignoresSafeArea()
             
-            // Decorative blobs
-            VStack {
-                HStack {
-                    Circle()
-                        .fill(Color.blue.opacity(0.1))
-                        .frame(width: 200, height: 200)
-                        .blur(radius: 50)
-                        .offset(x: -50, y: -50)
-                    Spacer()
-                }
-                Spacer()
-                HStack {
-                    Spacer()
-                    Circle()
-                        .fill(Color.cyan.opacity(0.1))
-                        .frame(width: 250, height: 250)
-                        .blur(radius: 50)
-                        .offset(x: 50, y: 50)
-                }
-            }
-            .ignoresSafeArea()
-            
-            VStack(spacing: 40) {
+            VStack(spacing: 30) {
                 Spacer()
                 
                 // Branding
-                VStack(spacing: 16) {
-                    ZStack {
-                        Circle()
-                            .fill(.ultraThinMaterial)
-                            .frame(width: 140, height: 140)
-                            .shadow(color: .blue.opacity(0.1), radius: 20)
-                        
-                        Image(systemName: "ear.and.waveform")
-                            .font(.system(size: 60))
-                            .foregroundStyle(
-                                LinearGradient(colors: [.blue, .purple], startPoint: .topLeading, endPoint: .bottomTrailing)
-                            )
-                    }
-                    
+                VStack(spacing: 8) {
                     Text("CueSense")
-                        .font(.largeTitle.weight(.heavy))
+                        .font(.system(size: 38, weight: .heavy, design: .rounded))
                         .foregroundStyle(.primary)
                     
-                    Text("Your private social assistant")
+                    Text("Your conversation companion")
                         .font(.body)
                         .foregroundStyle(.secondary)
                 }
                 
                 Spacer()
+                    .frame(height: 10)
                 
-                // Primary Action using Glassmorphism
+                // Ready to Listen Card
+                VStack(spacing: 16) {
+                    // Waveform icon in purple circle
+                    ZStack {
+                        Circle()
+                            .fill(Theme.primary.opacity(0.15))
+                            .frame(width: 64, height: 64)
+                        
+                        Image(systemName: "waveform")
+                            .font(.system(size: 28, weight: .semibold))
+                            .foregroundStyle(Theme.primary)
+                    }
+                    
+                    Text("Ready to Listen")
+                        .font(.title3.bold())
+                        .foregroundStyle(.primary)
+                    
+                    Text("Tap the button below to start a conversation session. I'll provide gentle cues when needed.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 16)
+                }
+                .padding(.vertical, 28)
+                .padding(.horizontal, 24)
+                .background(
+                    RoundedRectangle(cornerRadius: 24)
+                        .fill(.white.opacity(0.65))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 24)
+                        .stroke(.white.opacity(0.5), lineWidth: 1)
+                )
+                .padding(.horizontal, 32)
+                
+                Spacer()
+                
+                // Start Session Button
                 Button(action: {
                     speechManager.startRecording()
                     startSession()
                 }) {
-                    HStack(spacing: 15) {
+                    HStack(spacing: 12) {
                         Image(systemName: "mic.fill")
-                            .font(.title2)
+                            .font(.title3)
                         Text("Start Session")
                             .font(.title3.bold())
                     }
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 20)
-                    .background(
-                        LinearGradient(colors: [.blue, .cyan], startPoint: .leading, endPoint: .trailing)
-                    )
+                    .padding(.vertical, 18)
+                    .background(Theme.buttonGradient)
                     .clipShape(Capsule())
-                    .shadow(color: .blue.opacity(0.4), radius: 15, x: 0, y: 10)
+                    .shadow(color: Theme.primary.opacity(0.35), radius: 15, x: 0, y: 8)
                 }
                 .padding(.horizontal, 40)
                 .onAppear {

@@ -5,265 +5,339 @@ import CoreHaptics
 @available(iOS 17, *)
 @available(iOS 17, *)
 struct ActiveSessionView: View {
-    @EnvironmentObject var speechManager: SpeechManager
-    @Binding var isPresented: Bool
-    @Environment(\.modelContext) private var modelContext
-    @Query private var profiles: [UserProfile]
-    
-    private var userProfile: UserProfile? {
-        profiles.first
+  @EnvironmentObject var speechManager: SpeechManager
+  @Binding var isPresented: Bool
+  @Environment(\.modelContext) private var modelContext
+  @Query private var profiles: [UserProfile]
+
+  private var userProfile: UserProfile? {
+    profiles.first
+  }
+
+  // Analysis
+  private let analysisManager = AnalysisManager()
+  @State private var guidance: String?
+  @State private var measure: String?
+  @State private var currentTone: String = "Neutral"
+  @State private var sentimentScore: Double = 0.0
+  @State private var socialCues: [String] = []
+  @State private var aiInsight: String?
+  @State private var sessionStartTime: Date?
+
+  // Extra analysis result for saving
+  @State private var lastAnalysisResult: AnalysisResult?
+
+  // Haptics
+  @State private var engine: CHHapticEngine?
+
+  // Timer for audio metrics (every 1s)
+  let audioTimer = Timer.publish(every: 1.0, on: .main, in: .common).autoconnect()
+  // Timer for guidance/suggestions (every 10s)
+  let guidanceTimer = Timer.publish(every: 10.0, on: .main, in: .common).autoconnect()
+
+  // Elapsed time
+  @State private var elapsedSeconds: Int = 0
+
+  var body: some View {
+    ZStack {
+      // Background image
+      Image("background")
+          .resizable()
+          .aspectRatio(contentMode: .fill)
+          .ignoresSafeArea()
+
+      VStack(spacing: 0) {
+        Spacer()
+            .frame(height: 60)
+
+        // Listening Header
+        VStack(spacing: 8) {
+          Text("Listening...")
+              .font(.system(size: 32, weight: .heavy, design: .rounded))
+              .foregroundStyle(.primary)
+
+          HStack(spacing: 6) {
+            Circle()
+                .fill(Color.gray)
+                .frame(width: 8, height: 8)
+            Text(speechManager.transcript.isEmpty ? "Waiting for speech" : "Hearing speech")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+          }
+        }
+
+        Spacer()
+            .frame(height: 30)
+
+        // Dot Waveform Visualizer
+        WaveformVisualizerView(samples: speechManager.soundSamples)
+            .frame(height: 50)
+            .padding(.horizontal, 8)
+
+        Spacer()
+            .frame(height: 30)
+
+        // Live Transcription Section
+        VStack(alignment: .leading, spacing: 10) {
+          HStack(spacing: 6) {
+            Image(systemName: "text.bubble.fill")
+                .foregroundStyle(Theme.primary)
+            Text("Live Transcription")
+                .font(.headline)
+                .foregroundStyle(.primary)
+          }
+
+          ZStack(alignment: .topLeading) {
+            RoundedRectangle(cornerRadius: 14)
+                .fill(.white.opacity(0.5))
+                .frame(minHeight: 80)
+
+            Text(speechManager.transcript.isEmpty ? "Start speaking..." : speechManager.transcript)
+                .font(.body)
+                .foregroundStyle(speechManager.transcript.isEmpty ? .secondary : .primary)
+                .padding(16)
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+          }
+        }
+        .padding(.horizontal, 20)
+
+        Spacer()
+            .frame(height: 16)
+
+        // dB + Total Time
+        Text("dB: \(String(format: "%.1f", -64.9 + Double(speechManager.soundLevel) * 64.9)) | Total: \(formatElapsed(elapsedSeconds))")
+            .font(.system(.caption, design: .monospaced))
+            .foregroundStyle(Theme.primary.opacity(0.7))
+
+        // Guidance Area (only shows when available)
+        if let guidance = guidance {
+          VStack(spacing: 8) {
+            if let aiInsight = aiInsight, aiInsight != "None" {
+              HStack(spacing: 4) {
+                Image(systemName: "cpu.fill")
+                    .font(.caption2)
+                    .foregroundStyle(Theme.primary)
+                Text(aiInsight)
+                    .font(.caption2.bold())
+                    .foregroundStyle(.secondary)
+              }
+              .padding(.horizontal, 10)
+              .padding(.vertical, 4)
+              .background(.ultraThinMaterial)
+              .clipShape(Capsule())
+            }
+
+            Text(guidance)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.primary)
+                .multilineTextAlignment(.center)
+
+            if let measure = measure {
+              Text(measure)
+                  .font(.caption)
+                  .foregroundStyle(.secondary)
+                  .multilineTextAlignment(.center)
+            }
+          }
+          .padding()
+          .frame(maxWidth: .infinity)
+          .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(.white.opacity(0.5))
+          )
+          .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(.white.opacity(0.3), lineWidth: 1)
+          )
+          .padding(.horizontal, 20)
+          .padding(.top, 12)
+          .transition(.scale.combined(with: .opacity))
+          .onAppear { triggerHaptic() }
+        }
+
+        Spacer()
+
+        // Stop Button
+        VStack(spacing: 10) {
+          Button(action: endSession) {
+            ZStack {
+              Circle()
+                  .fill(Color.red.opacity(0.9))
+                  .frame(width: 72, height: 72)
+                  .shadow(color: .red.opacity(0.3), radius: 10, y: 4)
+
+              RoundedRectangle(cornerRadius: 6)
+                  .fill(.white)
+                  .frame(width: 24, height: 24)
+            }
+          }
+
+          Text("Tap to end session")
+              .font(.caption)
+              .foregroundStyle(.secondary)
+        }
+        .padding(.bottom, 40)
+      }
+      .padding(.horizontal, 24)
     }
-    
-    // Analysis
-    private let analysisManager = AnalysisManager()
-    @State private var guidance: String?
-    @State private var measure: String?
-    @State private var currentTone: String = "Neutral"
-    @State private var sentimentScore: Double = 0.0
-    @State private var socialCues: [String] = []
-    @State private var aiInsight: String?
-    @State private var sessionStartTime: Date?
-    
-    // Extra analysis result for saving
-    @State private var lastAnalysisResult: AnalysisResult?
-    
-    // Haptics
-    @State private var engine: CHHapticEngine?
-    
-    // Timer for periodic analysis - Faster updates
-    let timer = Timer.publish(every: 1.0, on: .main, in: .common).autoconnect()
-    
-    var body: some View {
-        ZStack {
-            // Background
-            Color.black.ignoresSafeArea()
-            
-            // Background fluid Gradient - Blue dominant
-            RadialGradient(gradient: Gradient(colors: [
-                Color.blue.opacity(0.4),
-                Color.black
-            ]), center: .center, startRadius: 50, endRadius: 500)
-            .ignoresSafeArea()
-            .overlay(
-                Rectangle()
-                    .fill(.ultraThinMaterial)
-                    .opacity(0.1)
-            )
-            
-            VStack {
-                // Header
-                HStack {
-                    Image(systemName: "recordingtape")
-                        .foregroundStyle(.blue) 
-                    Text("Listening...")
-                        .font(.caption)
-                        .foregroundStyle(.blue.opacity(0.8)) 
-                    Spacer()
-                    Text(sessionStartTime ?? Date(), style: .timer)
-                        .font(.monospacedDigit(.body)())
-                        .foregroundStyle(.white)
-                }
-                .padding()
-                .background(.ultraThinMaterial)
-                
-                Spacer()
-                
-                // Visualizer
-                WaveformVisualizerView(samples: speechManager.soundSamples)
-                    .frame(height: 160)
-                
-                // Live Tone Badge 
-                Text(currentTone.uppercased())
-                    .font(.caption.bold())
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(.ultraThinMaterial)
-                    .foregroundStyle(.white)
-                    .clipShape(Capsule())
-                    .overlay(Capsule().stroke(toneColor(), lineWidth: 1))
-                    .padding(.top, 10)
-                
-                Spacer()
-                
-                // Guidance Area
-                VStack(spacing: 15) {
-                    if let aiInsight = aiInsight, aiInsight != "None" {
-                        HStack {
-                            Image(systemName: "cpu.fill")
-                                .foregroundStyle(.blue)
-                            Text(aiInsight)
-                                .font(.caption.bold())
-                                .foregroundStyle(.white)
-                        }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 4)
-                        .background(.ultraThinMaterial)
-                        .clipShape(Capsule())
-                        .overlay(Capsule().stroke(Color.blue.opacity(0.5), lineWidth: 1))
+    .onAppear {
+      sessionStartTime = Date()
+      prepareHaptics()
+    }
+    .onReceive(audioTimer) { _ in
+      // Update elapsed time and tone metrics every second
+      if let start = sessionStartTime {
+        elapsedSeconds = Int(Date().timeIntervalSince(start))
+      }
+      analyzeMetricsOnly()
+    }
+    .onReceive(guidanceTimer) { _ in
+      // Update guidance/suggestions every 10 seconds
+      analyzeFullGuidance()
+    }
+    .onChange(of: speechManager.isRecording) { newValue in
+      if !newValue {
+        endSession()
+      }
+    }
+  }
+
+  // Quick metrics update (tone, sentiment) — runs every 1s
+  private func analyzeMetricsOnly() {
+    guard let start = sessionStartTime else { return }
+    let duration = Date().timeIntervalSince(start)
+
+    let result = analysisManager.analyze(
+      transcript: speechManager.transcript,
+      duration: duration,
+      userProfile: userProfile
+    )
+
+    withAnimation(.spring()) {
+      self.sentimentScore = result.sentimentScore
+      self.currentTone = result.tone
+      self.socialCues = result.socialCues
+      self.aiInsight = result.aiInsight
+      self.lastAnalysisResult = result
+    }
+  }
+
+  // Full guidance update — runs every 10s
+  private func analyzeFullGuidance() {
+    guard let start = sessionStartTime else { return }
+    let duration = Date().timeIntervalSince(start)
+
+    let result = analysisManager.analyze(
+      transcript: speechManager.transcript,
+      duration: duration,
+      userProfile: userProfile
+    )
+
+    withAnimation(.spring()) {
+      self.sentimentScore = result.sentimentScore
+      self.currentTone = result.tone
+      self.socialCues = result.socialCues
+      self.aiInsight = result.aiInsight
+      self.lastAnalysisResult = result
+
+      if self.guidance != result.guidance {
+        self.guidance = result.guidance
+        self.measure = result.measure
+      }
+    }
+  }
+
+  private func formatElapsed(_ seconds: Int) -> String {
+    let m = seconds / 60
+    let s = seconds % 60
+    return "\(m)m \(s)s"
+  }
+
+  @State private var isSaving = false
+
+  private func endSession() {
+    guard !isSaving else { return }
+    isSaving = true
+
+    let wasRecording = speechManager.isRecording
+    if wasRecording {
+      speechManager.stopRecording()
+    }
+
+    // Save Session if we have a start time
+    if let start = sessionStartTime {
+      let duration = Date().timeIntervalSince(start)
+      print("DEBUG: Session duration: \(duration)")
+
+      // Only save if there was actual duration or transcript, to avoid noise
+      if duration > 0.1 {
+        let newSession = InteractionSession(
+          date: start,
+          duration: duration,
+          overallTone: sentimentScore,
+          summary: lastAnalysisResult?.analysisTitle ?? (speechManager.transcript.isEmpty ? "Quiet session" : "Conversation detected"),
+          transcript: speechManager.transcript,
+          toneLabel: currentTone,
+          topic: lastAnalysisResult?.topic,
+          analysisTitle: lastAnalysisResult?.analysisTitle,
+          improvementTips: lastAnalysisResult?.improvementTips ?? [],
+          conversationStarters: lastAnalysisResult?.conversationStarters ?? []
+        )
+                // Perform Save
+                let context = modelContext
+                Task { @MainActor in
+                    context.insert(newSession)
+                    do {
+                        try context.save()
+                        print("DEBUG: Session saved successfully! ID: \(newSession.id)")
+                    } catch {
+                        print("DEBUG: Failed to save session: \(error)")
                     }
                     
-                    if let guidance = guidance {
-                        VStack(spacing: 12) {
-                            Text(guidance)
-                                .font(.title3)
-                                .fontWeight(.bold)
-                                .foregroundColor(.white)
-                            
-                            if !socialCues.isEmpty {
-                                HStack {
-                                    ForEach(socialCues, id: \.self) { cue in
-                                        Text(cue)
-                                            .font(.system(size: 10, weight: .bold))
-                                            .padding(.horizontal, 8)
-                                            .padding(.vertical, 4)
-                                            .background(Color.blue.opacity(0.2)) 
-                                            .cornerRadius(8)
-                                    }
-                                }
-                            }
-                            
-                            if let measure = measure {
-                                Text(measure)
-                                    .font(.subheadline)
-                                    .foregroundStyle(.white.opacity(0.8))
-                                    .multilineTextAlignment(.center)
-                            }
-                        }
-                        .padding()
-                        .frame(maxWidth: .infinity)
-                        .background(.ultraThinMaterial)
-                        .cornerRadius(20)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 20)
-                                .stroke(Color.blue.opacity(0.3), lineWidth: 1) 
-                        )
-                        .transition(.scale.combined(with: .opacity))
-                        .onAppear { triggerHaptic() }
-                    } else {
-                        Text("Monitoring...")
-                            .font(.headline)
-                            .foregroundStyle(.white.opacity(0.5))
-                            .padding()
+                    // Delay dismissal slightly to ensure UI updates
+                    try? await Task.sleep(for: .seconds(0.5))
+                    withAnimation {
+                        isPresented = false
                     }
                 }
-                .padding(.horizontal)
-                
-                Spacer()
-                
-                // Controls
-                Button(action: endSession) {
-                    Text("End Session")
-                        .font(.title3.bold())
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.red.opacity(0.8)) 
-                        .cornerRadius(30)
-                        .shadow(radius: 10)
-                }
-                .padding(.horizontal, 40)
-                .padding(.bottom, 20)
-            }
-        }
-        .onAppear {
-            sessionStartTime = Date()
-            prepareHaptics()
-        }
-        .onReceive(timer) { _ in
-            analyze()
-        }
-        .onChange(of: speechManager.isRecording) { newValue in
-            if !newValue {
-                endSession()
-            }
-        }
+                return
+      } else {
+        print("DEBUG: Session too short to save")
+      }
+    } else {
+      print("DEBUG: sessionStartTime is nil")
     }
-    
-    private func analyze() {
-        guard let start = sessionStartTime else { return }
-        let duration = Date().timeIntervalSince(start)
-        
-        let result = analysisManager.analyze(
-            transcript: speechManager.transcript, 
-            duration: duration, 
-            userProfile: userProfile
-        )
-        
-        withAnimation(.spring()) {
-            self.sentimentScore = result.sentimentScore
-            self.currentTone = result.tone
-            self.socialCues = result.socialCues
-            self.aiInsight = result.aiInsight
-            self.lastAnalysisResult = result
-            
-            if self.guidance != result.guidance {
-                self.guidance = result.guidance
-                self.measure = result.measure
-            }
-        }
+
+    withAnimation {
+      isPresented = false
     }
-    
-    private func toneColor() -> Color {
-        switch currentTone {
-        case "Tense": return .red
-        case "Positive": return .green
-        case "Rushed": return .orange
-        case "Engaged": return .blue
-        default: return .white
-        }
+  }
+
+  private func prepareHaptics() {
+    guard CHHapticEngine.capabilitiesForHardware().supportsHaptics else { return }
+    do {
+      engine = try CHHapticEngine()
+      try engine?.start()
+    } catch {
+      print("Haptics error: \(error.localizedDescription)")
     }
-    
-    private func endSession() {
-        guard speechManager.isRecording else { return }
-        speechManager.stopRecording()
-        
-        if let start = sessionStartTime {
-            let duration = Date().timeIntervalSince(start)
-            let newSession = InteractionSession(
-                date: start,
-                duration: duration,
-                overallTone: sentimentScore,
-                summary: lastAnalysisResult?.analysisTitle ?? (speechManager.transcript.isEmpty ? "Quiet session" : "Conversation detected"),
-                transcript: speechManager.transcript,
-                toneLabel: currentTone,
-                topic: lastAnalysisResult?.topic,
-                analysisTitle: lastAnalysisResult?.analysisTitle,
-                improvementTips: lastAnalysisResult?.improvementTips ?? [],
-                conversationStarters: lastAnalysisResult?.conversationStarters ?? []
-            )
-            modelContext.insert(newSession)
-        }
-        
-        withAnimation {
-            isPresented = false
-        }
-    }
-    
-    private func prepareHaptics() {
-        guard CHHapticEngine.capabilitiesForHardware().supportsHaptics else { return }
-        do {
-            engine = try CHHapticEngine()
-            try engine?.start()
-        } catch {
-            print("Haptics error: \(error.localizedDescription)")
-        }
-    }
-    
+  }
+
     private func triggerHaptic() {
-        guard CHHapticEngine.capabilitiesForHardware().supportsHaptics else { return }
-        
-        var events = [CHHapticEvent]()
-        let intensity = CHHapticEventParameter(parameterID: .hapticIntensity, value: 0.8)
-        let sharpness = CHHapticEventParameter(parameterID: .hapticSharpness, value: 0.5)
-        let event = CHHapticEvent(eventType: .hapticTransient, parameters: [intensity, sharpness], relativeTime: 0)
-        events.append(event)
-        
-        do {
-            let pattern = try CHHapticPattern(events: events, parameters: [])
-            let player = try engine?.makePlayer(with: pattern)
-            try player?.start(atTime: 0)
-        } catch {
-            print("Failed to play haptic: \(error.localizedDescription)")
-        }
+      guard CHHapticEngine.capabilitiesForHardware().supportsHaptics else { return }
+
+      var events = [CHHapticEvent]()
+      let intensity = CHHapticEventParameter(parameterID: .hapticIntensity, value: 0.8)
+      let sharpness = CHHapticEventParameter(parameterID: .hapticSharpness, value: 0.5)
+      let event = CHHapticEvent(eventType: .hapticTransient, parameters: [intensity, sharpness], relativeTime: 0)
+      events.append(event)
+
+      do {
+        let pattern = try CHHapticPattern(events: events, parameters: [])
+        let player = try engine?.makePlayer(with: pattern)
+        try player?.start(atTime: 0)
+      } catch {
+        print("Failed to play haptic: \(error.localizedDescription)")
+      }
     }
 }

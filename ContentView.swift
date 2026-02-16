@@ -33,7 +33,7 @@ struct ContentView: View {
                 }
                 .tag(2)
             }
-            .tint(.blue)
+            .tint(Theme.primary)
         }
     }
 }

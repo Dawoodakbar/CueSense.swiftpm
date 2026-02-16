@@ -93,6 +93,11 @@ struct OnboardingProfileView: View {
                 .padding(.horizontal, 40)
                 .padding(.bottom, 60)
             }
+            .padding(.bottom, 300) // Extra padding for keyboard
+        }
+        .scrollDismissesKeyboard(.interactively)
+        .onTapGesture {
+            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
         }
     }
 }

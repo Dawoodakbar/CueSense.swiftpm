@@ -15,26 +15,28 @@ struct OnboardingContainerView: View {
     @State private var afterConversationFeeling: [String] = []
     
     var body: some View {
-        TabView(selection: $currentPage) {
-            OnboardingWelcomeView {
-                withAnimation {
-                    currentPage = 1
+        ZStack {
+            if currentPage == 0 {
+                OnboardingWelcomeView {
+                    withAnimation {
+                        currentPage = 1
+                    }
                 }
+                .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading)))
+            } else {
+                OnboardingProfileView(
+                    favoriteTopics: $favoriteTopics,
+                    improvementAreas: $improvementAreas,
+                    comfortFactors: $comfortFactors,
+                    conversationalFeeling: $conversationalFeeling,
+                    afterConversationFeeling: $afterConversationFeeling
+                ) {
+                    saveProfileAndComplete()
+                }
+                .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading)))
             }
-            .tag(0)
-            
-            OnboardingProfileView(
-                favoriteTopics: $favoriteTopics,
-                improvementAreas: $improvementAreas,
-                comfortFactors: $comfortFactors,
-                conversationalFeeling: $conversationalFeeling,
-                afterConversationFeeling: $afterConversationFeeling
-            ) {
-                saveProfileAndComplete()
-            }
-            .tag(1)
         }
-        .tabViewStyle(.page(indexDisplayMode: .never))
+        .animation(.default, value: currentPage)
         .ignoresSafeArea()
     }
     

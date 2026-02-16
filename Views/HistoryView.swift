@@ -2,7 +2,6 @@ import SwiftUI
 import SwiftData
 
 @available(iOS 17.0, *)
-@available(iOS 17.0, *)
 struct HistoryView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \InteractionSession.date, order: .reverse) private var sessions: [InteractionSession]
@@ -10,14 +9,17 @@ struct HistoryView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                // Subtle Background
-                Color.blue.opacity(0.05).ignoresSafeArea()
+                // Background image
+                Image("background")
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .ignoresSafeArea()
                 
                 if sessions.isEmpty {
                     VStack(spacing: 20) {
                         Image(systemName: "clock.arrow.circlepath")
                             .font(.system(size: 60))
-                            .foregroundStyle(.blue.opacity(0.3))
+                            .foregroundStyle(Theme.primary.opacity(0.3))
                         Text("No sessions yet")
                             .font(.title3.bold())
                             .foregroundStyle(.secondary)
@@ -54,6 +56,9 @@ struct HistoryView: View {
                     EditButton()
                 }
             }
+            .onAppear {
+                print("DEBUG: HistoryView sessions count: \(sessions.count)")
+            }
         }
     }
     
@@ -72,10 +77,14 @@ struct HistoryCard: View {
     
     var body: some View {
         HStack {
-            VStack(alignment: .leading, spacing: 8) {
-                Text(session.date.formatted(date: .abbreviated, time: .shortened))
+            VStack(alignment: .leading, spacing: 4) {
+                Text(session.analysisTitle ?? session.summary)
                     .font(.headline)
                     .foregroundStyle(.primary)
+                
+                Text(session.date.formatted(date: .abbreviated, time: .shortened))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
                 
                 HStack {
                     Label(formatDuration(session.duration), systemImage: "clock")
@@ -92,12 +101,11 @@ struct HistoryCard: View {
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(.ultraThinMaterial)
-                .shadow(color: .black.opacity(0.05), radius: 5, x: 0, y: 2)
+                .fill(.white.opacity(0.55))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .stroke(.white.opacity(0.2), lineWidth: 1)
+                .stroke(.white.opacity(0.3), lineWidth: 1)
         )
     }
     

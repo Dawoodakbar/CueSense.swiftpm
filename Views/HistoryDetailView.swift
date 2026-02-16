@@ -8,7 +8,7 @@ struct HistoryDetailView: View {
     
     var body: some View {
         ScrollView {
-            VStack(spacing: 25) {
+            VStack(spacing: 24) {
                 // Analysis Header
                 VStack(spacing: 8) {
                     Text(session.analysisTitle ?? "Conversation Analysis")
@@ -18,16 +18,41 @@ struct HistoryDetailView: View {
                     if let topic = session.topic {
                         Text("Topic: \(topic)")
                             .font(.headline)
-                            .foregroundStyle(.blue)
+                            .foregroundStyle(Theme.primary)
                     }
                 }
                 .padding(.top)
                 
                 // Header Stats
-                HStack(spacing: 15) {
-                    StatBox(title: "Duration", value: formatDuration(session.duration), icon: "clock", color: .blue)
-                    StatBox(title: "Avg Tone", value: String(format: "%.1f", session.overallTone), icon: "waveform", color: .purple)
+                HStack(spacing: 12) {
+                    StatBox(title: "Duration", value: formatDuration(session.duration), icon: "clock", color: Theme.primary)
+                    StatBox(title: "Avg Tone", value: String(format: "%.1f", session.overallTone), icon: "waveform", color: Theme.secondary)
                     StatBox(title: "Tone Type", value: session.toneLabel ?? "Neutral", icon: "face.smiling", color: toneColor())
+                }
+                .padding(.horizontal)
+                
+                // Conversation Summary
+                VStack(alignment: .leading, spacing: 12) {
+                    Label("Conversation Summary", systemImage: "doc.text.fill")
+                        .font(.headline)
+                        .foregroundStyle(Theme.primary)
+                    
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text(generateSummary())
+                            .font(.body)
+                            .foregroundStyle(.primary)
+                            .lineSpacing(4)
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(.white.opacity(0.5))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(Theme.primary.opacity(0.1), lineWidth: 1)
+                    )
                 }
                 .padding(.horizontal)
                 
@@ -56,55 +81,67 @@ struct HistoryDetailView: View {
                     .padding(.horizontal)
                 }
                 
+                // Next Conversation Suggestions
+                VStack(alignment: .leading, spacing: 15) {
+                    Label("Next Conversation Ideas", systemImage: "lightbulb.fill")
+                        .font(.headline)
+                        .foregroundStyle(.orange)
+                    
+                    VStack(alignment: .leading, spacing: 10) {
+                        // Topic suggestions
+                        if let topic = session.topic {
+                            SuggestionCard(
+                                icon: "bubble.left.and.bubble.right.fill",
+                                title: "Continue this topic",
+                                subtitle: "Keep exploring \(topic) — ask deeper questions or share your own views."
+                            )
+                        }
+                        
+                        SuggestionCard(
+                            icon: "person.2.fill",
+                            title: "Try a new topic",
+                            subtitle: suggestNewTopic()
+                        )
+                        
+                        SuggestionCard(
+                            icon: "star.fill",
+                            title: "Practice a skill",
+                            subtitle: suggestSkillPractice()
+                        )
+                    }
+                }
+                .padding(.horizontal)
+                
                 // Conversation Starters
                 if !session.conversationStarters.isEmpty {
                     VStack(alignment: .leading, spacing: 15) {
                         Label("Conversation Starters", systemImage: "sparkles")
                             .font(.headline)
-                            .foregroundStyle(.blue)
+                            .foregroundStyle(Theme.primary)
                         
                         VStack(alignment: .leading, spacing: 10) {
                             ForEach(session.conversationStarters, id: \.self) { starter in
-                                Text(starter)
-                                    .font(.subheadline.italic())
-                                    .padding()
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .background(Color.blue.opacity(0.05))
-                                    .cornerRadius(12)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 12)
-                                            .stroke(Color.blue.opacity(0.1), lineWidth: 1)
-                                    )
+                                HStack(alignment: .top, spacing: 10) {
+                                    Image(systemName: "quote.opening")
+                                        .font(.caption)
+                                        .foregroundStyle(Theme.primary)
+                                        .padding(.top, 3)
+                                    Text(starter)
+                                        .font(.subheadline.italic())
+                                }
+                                .padding()
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(Theme.primary.opacity(0.05))
+                                .cornerRadius(12)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(Theme.primary.opacity(0.1), lineWidth: 1)
+                                )
                             }
                         }
                     }
                     .padding(.horizontal)
                 }
-                
-                // Transcript Section (Collapsible or secondary)
-                DisclosureGroup {
-                    if let transcript = session.transcript, !transcript.isEmpty {
-                        Text(transcript)
-                            .padding()
-                            .font(.body)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(.ultraThinMaterial)
-                            .cornerRadius(16)
-                    } else {
-                        Text("No speech detected.")
-                            .italic()
-                            .foregroundStyle(.tertiary)
-                            .padding()
-                    }
-                } label: {
-                    Label("Conversation Transcript", systemImage: "quote.bubble.fill")
-                        .font(.headline)
-                        .foregroundStyle(.secondary)
-                }
-                .padding(.horizontal)
-                .padding(.vertical, 10)
-                .background(RoundedRectangle(cornerRadius: 16).fill(Color.white.opacity(0.3)))
-                .padding(.horizontal)
                 
                 // Actions
                 Button(role: .destructive, action: deleteSession) {
@@ -123,9 +160,86 @@ struct HistoryDetailView: View {
             }
             .padding(.top)
         }
-        .background(Color.blue.opacity(0.05).ignoresSafeArea())
+        .background(
+            Image("background")
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .ignoresSafeArea()
+        )
         .navigationTitle(session.date.formatted(date: .abbreviated, time: .shortened))
         .navigationBarTitleDisplayMode(.inline)
+    }
+    
+    // MARK: - Summary Generation
+    
+    private func generateSummary() -> String {
+        var parts: [String] = []
+        
+        // Duration context
+        let durationStr = formatDuration(session.duration)
+        parts.append("This was a \(durationStr) conversation session.")
+        
+        // Topic
+        if let topic = session.topic {
+            parts.append("The discussion centered around \(topic).")
+        }
+        
+        // Tone
+        if let tone = session.toneLabel {
+            switch tone {
+            case "Positive":
+                parts.append("The overall mood was positive and upbeat.")
+            case "Tense":
+                parts.append("The conversation had some tense moments.")
+            case "Rushed":
+                parts.append("The pacing was on the quicker side.")
+            case "Calm":
+                parts.append("The conversation maintained a calm, measured pace.")
+            case "Engaged":
+                parts.append("Both sides were actively engaged throughout.")
+            case "Passive":
+                parts.append("The conversation was relatively quiet with less active participation.")
+            case "Uncertain":
+                parts.append("There were moments of hesitation or uncertainty.")
+            case "Confident":
+                parts.append("The tone came across as confident and assertive.")
+            default:
+                parts.append("The tone was generally neutral.")
+            }
+        }
+        
+        // Sentiment
+        if session.overallTone > 0.3 {
+            parts.append("Sentiment was noticeably positive.")
+        } else if session.overallTone < -0.3 {
+            parts.append("Sentiment leaned toward the negative side.")
+        }
+        
+        return parts.joined(separator: " ")
+    }
+    
+    private func suggestNewTopic() -> String {
+        let topics = ["current events", "favorite hobbies", "travel experiences", "movies or books", "future goals", "childhood memories"]
+        let randomTopic = topics.randomElement() ?? "something new"
+        return "Try talking about \(randomTopic) to broaden your conversational range."
+    }
+    
+    private func suggestSkillPractice() -> String {
+        if let tone = session.toneLabel {
+            switch tone {
+            case "Rushed":
+                return "Focus on slowing down and adding natural pauses between your thoughts."
+            case "Passive":
+                return "Practice initiating topics and asking open-ended questions."
+            case "Tense":
+                return "Work on using calming language and acknowledging the other person's viewpoint."
+            case "Uncertain":
+                return "Try preparing a few talking points beforehand to boost confidence."
+            default:
+                return "Keep practicing active listening and asking follow-up questions."
+            }
+        }
+        return "Practice active listening by summarizing what the other person says."
     }
     
     private func toneColor() -> Color {
@@ -133,7 +247,7 @@ struct HistoryDetailView: View {
         case "Tense": return .red
         case "Positive": return .green
         case "Rushed": return .orange
-        case "Engaged": return .blue
+        case "Engaged": return Theme.primary
         default: return .secondary
         }
     }
@@ -148,6 +262,40 @@ struct HistoryDetailView: View {
         formatter.allowedUnits = [.minute, .second]
         formatter.unitsStyle = .abbreviated
         return formatter.string(from: duration) ?? "0s"
+    }
+}
+
+// MARK: - Suggestion Card
+
+struct SuggestionCard: View {
+    let icon: String
+    let title: String
+    let subtitle: String
+    
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: icon)
+                .font(.title3)
+                .foregroundStyle(.orange)
+                .frame(width: 28)
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.subheadline.bold())
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineSpacing(2)
+            }
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.orange.opacity(0.05))
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.orange.opacity(0.1), lineWidth: 1)
+        )
     }
 }
 

@@ -42,16 +42,9 @@ struct OnboardingWelcomeView: View {
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
-                    .background(
-                        Capsule()
-                            .fill(
-                                LinearGradient(
-                                    colors: [Color(red: 0.29, green: 0.56, blue: 0.96), Color(red: 0.29, green: 0.56, blue: 0.96)],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                    )
+                    .background(Color.blue)
+                    .clipShape(Capsule())
+                    .shadow(radius: 5)
             }
             .padding(.horizontal, 40)
             .padding(.bottom, 60)

@@ -15,8 +15,8 @@ final class InteractionSession {
     // New Analysis Fields
     var topic: String?
     var analysisTitle: String?
-    var improvementTips: [String]
-    var conversationStarters: [String]
+    var improvementTips: [String] = []
+    var conversationStarters: [String] = []
     
     init(
         date: Date = Date(),
