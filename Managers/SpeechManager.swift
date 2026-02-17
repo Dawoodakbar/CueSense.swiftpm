@@ -90,14 +90,16 @@ final class SpeechManager: ObservableObject, Sendable {
         request.shouldReportPartialResults = true
         
         let inputNode = audioEngine.inputNode
-        let recordingFormat = inputNode.outputFormat(forBus: 0)
+        
+        // Use inputFormat which is more robust for taps on the inputNode
+        let recordingFormat = inputNode.inputFormat(forBus: 0)
         
         guard recordingFormat.sampleRate > 0 else {
             self.error = "Invalid audio format."
             return
         }
         
-        // Remove existing tap if any
+        // Ensure we remove any existing tap before installing a new one
         inputNode.removeTap(onBus: 0)
         
         // 1. Start Recognition Task (Non-isolated creation)
@@ -201,11 +203,10 @@ struct UncheckedSendable<T>: @unchecked Sendable {
     
     /// Stops the audio engine and cancels the recognition task.
     func stopRecording() {
-        if audioEngine.isRunning {
-            audioEngine.stop()
-            audioEngine.outputNode.removeTap(onBus: 0) // Extra safety check for output tap
-            audioEngine.inputNode.removeTap(onBus: 0)
-        }
+        // Always remove tap and stop engine regardless of state
+        audioEngine.stop()
+        audioEngine.inputNode.removeTap(onBus: 0)
+        audioEngine.reset()
         
         recognitionRequest?.endAudio()
         recognitionRequest = nil
