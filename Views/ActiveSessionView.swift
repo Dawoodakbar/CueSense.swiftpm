@@ -86,6 +86,7 @@ struct ActiveSessionView: View {
                 .font(.headline)
                 .foregroundStyle(.primary)
           }
+          .padding(16)
 
           ZStack(alignment: .topLeading) {
             RoundedRectangle(cornerRadius: 14)
@@ -95,8 +96,8 @@ struct ActiveSessionView: View {
             Text(speechManager.transcript.isEmpty ? "Start speaking..." : speechManager.transcript)
                 .font(.body)
                 .foregroundStyle(speechManager.transcript.isEmpty ? .secondary : .primary)
-                .padding(16)
                 .frame(maxWidth: .infinity, alignment: .topLeading)
+                .padding(16)
           }
         }
         .padding(.horizontal, 20)
@@ -152,7 +153,7 @@ struct ActiveSessionView: View {
           .padding(.horizontal, 20)
           .padding(.top, 12)
           .transition(.scale.combined(with: .opacity))
-          .onAppear { triggerHaptic() }
+          .onAppear { /* Already triggered by result change */ }
         }
 
         Spacer()
@@ -243,6 +244,8 @@ struct ActiveSessionView: View {
       if self.guidance != result.guidance {
         self.guidance = result.guidance
         self.measure = result.measure
+        // Trigger haptic whenever the guidance text actually changes
+        triggerHaptic()
       }
     }
   }
@@ -327,9 +330,20 @@ struct ActiveSessionView: View {
       guard CHHapticEngine.capabilitiesForHardware().supportsHaptics else { return }
 
       var events = [CHHapticEvent]()
-      let intensity = CHHapticEventParameter(parameterID: .hapticIntensity, value: 0.8)
-      let sharpness = CHHapticEventParameter(parameterID: .hapticSharpness, value: 0.5)
-      let event = CHHapticEvent(eventType: .hapticTransient, parameters: [intensity, sharpness], relativeTime: 0)
+      
+      // Create a "pulse" buzz pattern: 3 quick transients followed by a longer one
+      for i in 0..<3 {
+          let t = Double(i) * 0.1
+          let intensity = CHHapticEventParameter(parameterID: .hapticIntensity, value: 0.9)
+          let sharpness = CHHapticEventParameter(parameterID: .hapticSharpness, value: 0.6)
+          let event = CHHapticEvent(eventType: .hapticTransient, parameters: [intensity, sharpness], relativeTime: t)
+          events.append(event)
+      }
+      
+      // Final more intense buzz
+      let intensity = CHHapticEventParameter(parameterID: .hapticIntensity, value: 1.0)
+      let sharpness = CHHapticEventParameter(parameterID: .hapticSharpness, value: 0.8)
+      let event = CHHapticEvent(eventType: .hapticContinuous, parameters: [intensity, sharpness], relativeTime: 0.3, duration: 0.15)
       events.append(event)
 
       do {

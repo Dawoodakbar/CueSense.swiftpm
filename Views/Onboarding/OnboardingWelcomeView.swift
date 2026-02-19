@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct OnboardingWelcomeView: View {
+    @Environment(\.dismiss) private var dismiss
+    var showNextButton: Bool = true
     let onNext: () -> Void
     
     var body: some View {
@@ -35,19 +37,34 @@ struct OnboardingWelcomeView: View {
             
             Spacer()
             
-            // Next Button
-            Button(action: onNext) {
-                Text("Next")
-                    .font(.title3.bold())
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(Color.blue)
-                    .clipShape(Capsule())
-                    .shadow(radius: 5)
+            // Next/Close Button
+            if showNextButton {
+                Button(action: onNext) {
+                    Text("Next")
+                        .font(.title3.bold())
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(Color.blue)
+                        .clipShape(Capsule())
+                        .shadow(radius: 5)
+                }
+                .padding(.horizontal, 40)
+                .padding(.bottom, 60)
+            } else {
+                Button(action: { dismiss() }) {
+                    Text("Close")
+                        .font(.title3.bold())
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(Theme.primary)
+                        .clipShape(Capsule())
+                        .shadow(radius: 5)
+                }
+                .padding(.horizontal, 40)
+                .padding(.bottom, 60)
             }
-            .padding(.horizontal, 40)
-            .padding(.bottom, 60)
         }
         .background(Color(.systemBackground))
     }

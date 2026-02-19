@@ -4,6 +4,7 @@ import SwiftData
 @available(iOS 17.0, *)
 struct HomeView: View {
     @EnvironmentObject var speechManager: SpeechManager
+    @State private var showingInfo = false
     let startSession: () -> Void
     
     var body: some View {
@@ -68,6 +69,19 @@ struct HomeView: View {
                 
                 Spacer()
                 
+                // Info Icon Button
+                Button(action: { showingInfo = true }) {
+                    Image(systemName: "info.circle")
+                        .font(.title2)
+                        .foregroundColor(Theme.primary)
+                        .padding(10)
+                        .background(
+                            Circle()
+                                .fill(Theme.primary.opacity(0.1))
+                        )
+                }
+                .padding(.bottom, -15) // Move it closer to the start button
+                
                 // Start Session Button
                 Button(action: {
                     speechManager.startRecording()
@@ -86,13 +100,18 @@ struct HomeView: View {
                     .clipShape(Capsule())
                     .shadow(color: Theme.primary.opacity(0.35), radius: 15, x: 0, y: 8)
                 }
-                .padding(.horizontal, 40)
+                .padding(.horizontal, 100)
                 .onAppear {
                     speechManager.checkPermissions()
                 }
                 
                 Spacer()
                     .frame(height: 50)
+            }
+        }
+        .sheet(isPresented: $showingInfo) {
+            OnboardingWelcomeView(showNextButton: false) {
+                showingInfo = false
             }
         }
     }
