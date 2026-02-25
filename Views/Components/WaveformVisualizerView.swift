@@ -7,10 +7,10 @@ struct WaveformVisualizerView: View {
         GeometryReader { geometry in
             HStack(spacing: 4) {
                 ForEach(0..<min(samples.count, 50), id: \.self) { index in
-                    Circle()
-                        .fill(Color(.systemGray3))
+                    Capsule()
+                        .fill(Theme.primary.opacity(0.8))
                         .frame(
-                            width: dotSize(for: samples[index], height: geometry.size.height),
+                            width: 5,
                             height: dotSize(for: samples[index], height: geometry.size.height)
                         )
                         .animation(.easeInOut(duration: 0.15), value: samples[index])
@@ -21,9 +21,9 @@ struct WaveformVisualizerView: View {
     }
     
     private func dotSize(for sample: Float, height: CGFloat) -> CGFloat {
-        let base: CGFloat = 6
-        let maxSize: CGFloat = min(height * 0.6, 18)
-        let level = max(0.05, CGFloat(sample) * 1.5)
+        let base: CGFloat = 8
+        let maxSize: CGFloat = min(height * 0.9, 45)
+        let level = max(0.01, CGFloat(sample) * 1.5)
         return min(maxSize, base + level * (maxSize - base))
     }
 }

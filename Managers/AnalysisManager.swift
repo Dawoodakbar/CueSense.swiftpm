@@ -100,11 +100,12 @@ class AnalysisManager {
 
     // 7. Topic & Title Detection
     let detectedTopic = detectTopic(transcript)
-    let analysisTitle = generateTitle(topic: detectedTopic, emotion: emotion, tone: tone)
+    let keywords = extractKeywords(transcript)
+    let analysisTitle = generateTitle(topic: detectedTopic, emotion: emotion, tone: tone, keywords: keywords)
 
     // 8. Personalized Tips & Starters
     let improvementTips = generateImprovementTips(metrics: metrics, tone: tone, socialCues: socialCues, userProfile: userProfile)
-    let starters = generateConversationStarters(topic: detectedTopic, socialCues: socialCues)
+    let starters = generateConversationStarters(topic: detectedTopic, socialCues: socialCues, keywords: keywords)
 
     return AnalysisResult(
       sentimentScore: finalSentiment,
@@ -292,70 +293,70 @@ class AnalysisManager {
     private func generateGuidance(tone: String, sentiment: Double, wpm: Double, metrics: SpeechMetrics, socialCues: [String], userProfile: UserProfile? = nil) -> (String?, String?) {
         var guidance: String?
         var measure: String?
-        
+
         switch tone {
         case "Tense":
-            guidance = "The conversation feels a bit heated."
-            measure = "Take a deep breath and lower your volume. Use phrases like 'I understand' to de-escalate."
-            
+            guidance = "⚠️ The conversation is getting tense."
+            measure = "Take a deep breath and lower your volume. Use phrases like 'I understand' to de-escalate and bring the conversation back to a calm space."
+
         case "Positive":
-            guidance = "You're doing great! The energy is very positive."
-            measure = "Keep up the enthusiasm, but make sure to give others space to contribute."
-            
+            guidance = "✅ Great job — the energy is very positive!"
+            measure = "Keep up the enthusiasm, but make sure to give others space to contribute too."
+
         case "Rushed":
-            guidance = "You might be speaking a bit too quickly."
-            measure = "Slow down and add 1-2 second pauses between thoughts. This helps others follow along."
-            
+            guidance = "⚠️ You're speaking a bit too quickly."
+            measure = "Try slowing down and adding 1–2 second pauses between thoughts — this helps others follow along more easily."
+
         case "Calm":
-            guidance = "Your pace is excellent and measured."
+            guidance = "✅ Your pace is excellent and well-measured."
             measure = "Maintain this balanced approach. You're creating space for meaningful dialogue."
-            
+
         case "Engaged":
-            guidance = "You're actively engaged in the conversation."
+            guidance = "✅ You're actively engaged in the conversation."
             measure = "Great job! Keep asking questions and showing interest in others' perspectives."
-            
+
         case "Passive":
             if metrics.wordCount < 5 {
-                guidance = "You've been quite quiet."
-                measure = "Try contributing your thoughts or asking an open-ended question to join in."
+                guidance = "⚠️ You've been very quiet — try speaking up more."
+                measure = "Try contributing your thoughts or asking an open-ended question to join the conversation."
             } else {
-                guidance = "Your pacing is very relaxed."
-                measure = "Consider increasing your energy slightly to show engagement."
+                guidance = "⚠️ Your pacing may be too relaxed — try adding more energy."
+                measure = "Consider speaking with a little more enthusiasm to show engagement and keep the conversation flowing."
             }
-            
+
         case "Uncertain":
-            guidance = "You seem a bit uncertain or hesitant."
+            guidance = "⚠️ You seem a bit uncertain or hesitant."
             measure = "It's okay to take your time. Gather your thoughts before speaking, or say 'Let me think about that.'"
-            
+
         case "Confident":
             if socialCues.contains("Dominating") {
-                guidance = "You're speaking confidently, but be mindful of others."
-                measure = "Invite input from others by asking 'What do you think?' periodically."
+                guidance = "⚠️ You're speaking confidently, but try letting others contribute."
+                measure = "Invite input by asking 'What do you think?' to keep the balance in the conversation."
             } else {
-                guidance = "Your confidence is coming through clearly."
+                guidance = "✅ Your confidence is coming through clearly."
                 measure = "Excellent! Keep this assertive yet respectful tone."
             }
-            
+
         default:
-            guidance = "Everything seems balanced."
-            measure = "Continue being present in the conversation and maintain eye contact."
+            guidance = "✅ Everything seems balanced."
+            measure = "Continue being present in the conversation and maintain good eye contact."
         }
-        
+
         // Incorporate Profile Goals
         if let profile = userProfile {
             if profile.improvementAreas.contains("Waiting my turn") && socialCues.contains("Dominating") {
-                guidance = "You're speaking a lot, remember your goal to wait your turn."
+                guidance = "⚠️ You're speaking a lot — remember your goal to wait your turn."
                 measure = "Try counting to three before responding to give others a chance to step in."
             }
             if profile.improvementAreas.contains("Speaking at the right volume") && tone == "Tense" {
-                measure = "Focus on keeping your voice gentle, even if the topic feels intense."
+                measure = "Focus on keeping your voice gentle and steady, even if the topic feels intense."
             }
             if profile.improvementAreas.contains("Not talking for too long") && metrics.wordCount > 100 && metrics.sentenceCount > 10 {
-                guidance = "This was a long contribution."
-                measure = "Try summarizing your thoughts in 2-3 sentences to keep the flow balanced."
+                guidance = "⚠️ This was a long contribution — try to be more concise."
+                measure = "Try summarizing your thoughts in 2–3 sentences to keep the flow balanced."
             }
         }
-        
+
         return (guidance, measure)
     }
     
@@ -373,8 +374,10 @@ class AnalysisManager {
         return nil
     }
     
-    private func generateTitle(topic: String?, emotion: String?, tone: String) -> String {
-        if let topic = topic {
+    private func generateTitle(topic: String?, emotion: String?, tone: String, keywords: [String]) -> String {
+        if let firstKeyword = keywords.first {
+            return "\(firstKeyword) Discussion"
+        } else if let topic = topic {
             return "\(topic) Discussion"
         } else if let emotion = emotion {
             return "\(emotion) Expression"
@@ -415,10 +418,20 @@ class AnalysisManager {
         return tips
     }
     
-    private func generateConversationStarters(topic: String?, socialCues: [String]) -> [String] {
+    private func generateConversationStarters(topic: String?, socialCues: [String], keywords: [String]) -> [String] {
         var starters: [String] = []
         
-        if let topic = topic {
+        if let firstKeyword = keywords.first {
+            if keywords.count >= 2 {
+                starters.append("You mentioned \(firstKeyword) and \(keywords[1]). What are your thoughts on how they relate?")
+            }
+            starters.append("Could you tell me more about your experience with \(firstKeyword)?")
+            if firstKeyword.lowercased() == "computer" || firstKeyword.lowercased() == "technology" {
+                 starters.append("What's your favorite piece of technology that's come out this year?")
+            }
+        }
+        
+        if let topic = topic, starters.isEmpty {
             switch topic {
             case "Space":
                 starters.append("What do you find most fascinating about the universe?")
@@ -431,9 +444,9 @@ class AnalysisManager {
             }
         }
         
-        if socialCues.contains("Agreeable") {
+        if socialCues.contains("Agreeable") && starters.count < 3 {
             starters.append("I'm glad we agree on that! What else is on your mind?")
-        } else if socialCues.contains("Disagreeing") {
+        } else if socialCues.contains("Disagreeing") && starters.count < 3 {
             starters.append("That's an interesting perspective. Tell me more about why you feel that way.")
         }
         
@@ -442,6 +455,37 @@ class AnalysisManager {
             starters.append("If you could learn any new skill instantly, what would it be?")
         }
         
-        return starters
+        return Array(starters.prefix(3))
+    }
+    
+    private func extractKeywords(_ text: String) -> [String] {
+        var keywords: [String] = []
+        let tagger = NLTagger(tagSchemes: [.nameType, .lexicalClass])
+        tagger.string = text
+        let options: NLTagger.Options = [.omitWhitespace, .omitPunctuation, .joinNames]
+        
+        // 1. Try to find named entities
+        tagger.enumerateTags(in: text.startIndex..<text.endIndex, unit: .word, scheme: .nameType, options: options) { tag, tokenRange in
+            if let tag = tag, [.personalName, .placeName, .organizationName].contains(tag) {
+                let word = String(text[tokenRange])
+                if !keywords.contains(word) { keywords.append(word) }
+            }
+            return true
+        }
+        
+        // 2. If not enough entities, find prominent nouns
+        if keywords.count < 2 {
+            tagger.enumerateTags(in: text.startIndex..<text.endIndex, unit: .word, scheme: .lexicalClass, options: options) { tag, tokenRange in
+                if let tag = tag, tag == .noun {
+                    let word = String(text[tokenRange])
+                    if word.count > 3 && !keywords.contains(word.capitalized) {
+                        keywords.append(word.capitalized)
+                    }
+                }
+                return true
+            }
+        }
+        
+        return Array(keywords.prefix(3))
     }
 }
