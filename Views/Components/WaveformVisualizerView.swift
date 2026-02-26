@@ -5,12 +5,18 @@ struct WaveformVisualizerView: View {
     
     var body: some View {
         GeometryReader { geometry in
-            HStack(spacing: 4) {
-                ForEach(0..<min(samples.count, 50), id: \.self) { index in
+            let barWidth: CGFloat = 5
+            let spacing: CGFloat = 4
+            let availableWidth = geometry.size.width
+            // Calculate how many bars can fit without overflowing
+            let maxBars = Int(floor(availableWidth / (barWidth + spacing)))
+            
+            HStack(spacing: spacing) {
+                ForEach(0..<min(samples.count, maxBars), id: \.self) { index in
                     Capsule()
                         .fill(Theme.primary.opacity(0.8))
                         .frame(
-                            width: 5,
+                            width: barWidth,
                             height: dotSize(for: samples[index], height: geometry.size.height)
                         )
                         .animation(.easeInOut(duration: 0.15), value: samples[index])
