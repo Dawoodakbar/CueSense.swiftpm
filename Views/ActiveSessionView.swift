@@ -20,6 +20,7 @@ struct ActiveSessionView: View {
     @State private var aiInsight: String?
     @State private var sessionStartTime: Date?
     @State private var lastAnalysisResult: AnalysisResult?
+    @State private var currentFeedbackType: FeedbackType = .neutral
 
     // MARK: - UI State
     @State private var isSaving = false
@@ -83,7 +84,16 @@ struct ActiveSessionView: View {
             if !newValue { endSession() }
         }
         // Declarative haptic — no UIKit needed
-        .sensoryFeedback(.warning, trigger: hapticTrigger)
+        .sensoryFeedback(trigger: hapticTrigger) { _, _ in
+            switch currentFeedbackType {
+            case .positive:
+                return .success
+            case .constructive:
+                return .warning
+            case .neutral:
+                return .impact(weight: .light)
+            }
+        }
         .onAppear {
             sessionStartTime = Date()
             startPulseAnimation()
@@ -366,6 +376,7 @@ struct ActiveSessionView: View {
             if guidance != result.guidance {
                 guidance = result.guidance
                 measure  = result.measure
+                currentFeedbackType = result.feedbackType
                 hapticTrigger.toggle()   // triggers .sensoryFeedback
             }
         }

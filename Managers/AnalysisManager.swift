@@ -1,6 +1,12 @@
 import Foundation
 import NaturalLanguage
 
+enum FeedbackType {
+    case positive
+    case constructive
+    case neutral
+}
+
 struct AnalysisResult {
     let sentimentScore: Double
     let pacing: Double // Words per minute
@@ -12,6 +18,7 @@ struct AnalysisResult {
     let aiInsight: String?
     let emotion: String? // Detected emotion
     let speechMetrics: SpeechMetrics
+    let feedbackType: FeedbackType
     
     // New Fields
     let topic: String?
@@ -98,7 +105,7 @@ class AnalysisManager {
     )
 
     // 6. Contextual Guidance
-    let (guidance, measure) = generateGuidance(
+    let (guidance, measure, feedbackType) = generateGuidance(
       tone: tone,
       sentiment: finalSentiment,
       wpm: wpm,
@@ -127,6 +134,7 @@ class AnalysisManager {
       aiInsight: aiInsight,
       emotion: emotion,
       speechMetrics: metrics,
+      feedbackType: feedbackType,
       topic: detectedTopic,
       analysisTitle: analysisTitle,
       improvementTips: improvementTips,
@@ -299,74 +307,89 @@ class AnalysisManager {
 
   // MARK: - Guidance Generation
 
-    private func generateGuidance(tone: String, sentiment: Double, wpm: Double, metrics: SpeechMetrics, socialCues: [String], userProfile: UserProfile? = nil) -> (String?, String?) {
+    private func generateGuidance(tone: String, sentiment: Double, wpm: Double, metrics: SpeechMetrics, socialCues: [String], userProfile: UserProfile? = nil) -> (String?, String?, FeedbackType) {
         var guidance: String?
         var measure: String?
+        var feedbackType: FeedbackType = .neutral
 
         switch tone {
         case "Tense":
-            guidance = "⚠️ The conversation is getting tense."
-            measure = "Take a deep breath and lower your volume. Use phrases like 'I understand' to de-escalate and bring the conversation back to a calm space."
+            guidance = "⚠️ I'm sensing some tension."
+            measure = "It might be helpful to pause for a moment. Lowering your volume slightly and saying 'I hear you' can really help smooth things over."
+            feedbackType = .constructive
 
         case "Positive":
-            guidance = "✅ Great job — the energy is very positive!"
-            measure = "Keep up the enthusiasm, but make sure to give others space to contribute too."
+            guidance = "✅ You're doing great! The energy is fantastic."
+            measure = "Your enthusiasm is contagious! Just remember to leave a little space for others to jump in and share the excitement."
+            feedbackType = .positive
 
         case "Rushed":
-            guidance = "⚠️ You're speaking a bit too quickly."
-            measure = "Try slowing down and adding 1–2 second pauses between thoughts — this helps others follow along more easily."
+            guidance = "⚠️ Whoa, slow down a little."
+            measure = "You have great ideas, but speaking a bit slower will help everyone catch every word. Try taking a breath between sentences."
+            feedbackType = .constructive
 
         case "Calm":
-            guidance = "✅ Your pace is excellent and well-measured."
-            measure = "Maintain this balanced approach. You're creating space for meaningful dialogue."
+            guidance = "✅ Beautifully calm and measured."
+            measure = "This pace is perfect. You're making it very easy for others to connect with what you're saying."
+            feedbackType = .positive
 
         case "Engaged":
-            guidance = "✅ You're actively engaged in the conversation."
-            measure = "Great job! Keep asking questions and showing interest in others' perspectives."
+            guidance = "✅ You're really tuned in right now."
+            measure = "I love how you're showing interest! Keep asking those open questions—it shows you really care about their perspective."
+            feedbackType = .positive
 
         case "Passive":
             if metrics.wordCount < 5 {
-                guidance = "⚠️ You've been very quiet — try speaking up more."
-                measure = "Try contributing your thoughts or asking an open-ended question to join the conversation."
+                guidance = "⚠️ You've been quiet for a while."
+                measure = "It's okay to jump in! Even a simple 'I agree' or 'That's interesting' helps you stay part of the flow."
+                feedbackType = .constructive
             } else {
-                guidance = "⚠️ Your pacing may be too relaxed — try adding more energy."
-                measure = "Consider speaking with a little more enthusiasm to show engagement and keep the conversation flowing."
+                guidance = "⚠️ Let's bring the energy up a notch."
+                measure = "You're sounding a little relaxed. Try adding a bit more feeling to your voice to show you're fully present."
+                feedbackType = .constructive
             }
 
         case "Uncertain":
-            guidance = "⚠️ You seem a bit uncertain or hesitant."
-            measure = "It's okay to take your time. Gather your thoughts before speaking, or say 'Let me think about that.'"
+            guidance = "⚠️ feeling a bit unsure?"
+            measure = "No need to rush. It's perfectly fine to say, 'Let me think about that for a second.' Take your time."
+            feedbackType = .neutral
 
         case "Confident":
             if socialCues.contains("Dominating") {
-                guidance = "⚠️ You're speaking confidently, but try letting others contribute."
-                measure = "Invite input by asking 'What do you think?' to keep the balance in the conversation."
+                guidance = "⚠️ You sound very confident, but be careful."
+                measure = "You're leading the conversation strongly. Try passing the mic by asking, 'What's your take on this?'"
+                feedbackType = .constructive
             } else {
-                guidance = "✅ Your confidence is coming through clearly."
-                measure = "Excellent! Keep this assertive yet respectful tone."
+                guidance = "✅ You're sounding strong and clear."
+                measure = "That confidence is great! You're getting your point across respectfully and effectively."
+                feedbackType = .positive
             }
 
         default:
-            guidance = "✅ Everything seems balanced."
-            measure = "Continue being present in the conversation and maintain good eye contact."
+            guidance = "✅ You're in a good flow."
+            measure = "Everything feels balanced. Just keep listening and being yourself."
+            feedbackType = .neutral
         }
 
         // Incorporate Profile Goals
         if let profile = userProfile {
             if profile.improvementAreas.contains("Waiting my turn") && socialCues.contains("Dominating") {
-                guidance = "⚠️ You're speaking a lot — remember your goal to wait your turn."
-                measure = "Try counting to three before responding to give others a chance to step in."
+                guidance = "⚠️ Gentle reminder: Wait for your turn."
+                measure = "I know it's exciting, but try counting to three when they finish speaking before you start."
+                feedbackType = .constructive
             }
             if profile.improvementAreas.contains("Speaking at the right volume") && tone == "Tense" {
-                measure = "Focus on keeping your voice gentle and steady, even if the topic feels intense."
+                measure = "Focus on keeping your voice gentle and steady. It helps keep the conversation friendly."
+                feedbackType = .constructive
             }
             if profile.improvementAreas.contains("Not talking for too long") && metrics.wordCount > 100 && metrics.sentenceCount > 10 {
-                guidance = "⚠️ This was a long contribution — try to be more concise."
-                measure = "Try summarizing your thoughts in 2–3 sentences to keep the flow balanced."
+                guidance = "⚠️ You've been speaking for a while."
+                measure = "Great points! Now might be a good time to wrap up this thought and see what they think."
+                feedbackType = .constructive
             }
         }
 
-        return (guidance, measure)
+        return (guidance, measure, feedbackType)
     }
     
     // MARK: - Advanced Analysis Helpers
