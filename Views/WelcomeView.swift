@@ -9,12 +9,8 @@ struct WelcomeView: View {
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
 
     var body: some View {
-        if showLoading {
-            LoadingView()
-                .transition(.opacity)
-        } else {
-            VStack(spacing: 0) {
-                Spacer()
+        VStack(spacing: 0) {
+            Spacer()
                 
                 // Logo & Title Section
                 VStack(spacing: 16) {
@@ -168,15 +164,9 @@ struct WelcomeView: View {
                         onContinue()
                     } else {
                         // Standard flow
+                        hasCompletedOnboarding = true
                         withAnimation {
-                            showLoading = true
-                        }
-                        
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                            hasCompletedOnboarding = true
-                            withAnimation {
-                                showWelcomeScreen = false
-                            }
+                            showWelcomeScreen = false
                         }
                     }
                 }) {
@@ -219,7 +209,6 @@ struct WelcomeView: View {
             .sheet(isPresented: $showDetailSheet) {
                 DetailInfoView(category: selectedDetail ?? "")
             }
-        }
     }
 }
 
