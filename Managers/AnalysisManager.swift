@@ -35,13 +35,22 @@ class AnalysisManager {
 
   // Topic keywords for simple detection
   private let topicKeywords: [String: [String]] = [
-    "Space": ["space", "stars", "aliens", "planets", "nasa", "galaxy", "telescope", "astronaut"],
-    "Technology": ["computer", "software", "ai", "coding", "interface", "robot", "tech", "digital", "internet"],
-    "Health": ["doctor", "medicine", "health", "exercise", "nutrition", "fitness", "wellness", "sickness"],
-    "Nature": ["trees", "environment", "ocean", "animals", "wildlife", "climate", "mountain", "forest"],
-    "Travel": ["vacation", "flight", "hotel", "destination", "adventure", "journey", "trip", "passport"],
-    "Games": ["gaming", "videogame", "console", "player", "score", "level", "competitive", "strategy"],
-    "History": ["ancient", "history", "century", "empire", "war", "republic", "historical", "ancestors"]
+    "Space": ["space", "stars", "aliens", "planets", "nasa", "galaxy", "telescope", "astronaut", "universe", "mars", "moon", "orbit", "solar system"],
+    "Technology": ["computer", "software", "ai", "coding", "interface", "robot", "tech", "digital", "internet", "app", "phone", "smartphone", "screen", "device", "algorithm", "data"],
+    "Health": ["doctor", "medicine", "health", "exercise", "nutrition", "fitness", "wellness", "sickness", "gym", "workout", "diet", "hospital", "mental health", "therapy"],
+    "Nature": ["trees", "environment", "ocean", "wildlife", "climate", "mountain", "forest", "river", "lake", "sky", "sun", "rain", "flower", "garden", "hiking"],
+    "Travel": ["vacation", "flight", "hotel", "destination", "adventure", "journey", "trip", "passport", "airport", "tourism", "explore", "sightseeing", "beach"],
+    "Games": ["gaming", "videogame", "console", "player", "score", "level", "competitive", "strategy", "minecraft", "fortnite", "roblox", "playstation", "xbox", "nintendo", "steam"],
+    "History": ["ancient", "history", "century", "empire", "war", "republic", "historical", "ancestors", "king", "queen", "past", "era", "museum", "civilization"],
+    "Pets": ["cat", "dog", "pet", "kitten", "puppy", "animal", "fur", "tail", "meow", "bark", "feed", "walk", "vet", "veterinarian", "adopt", "rescue", "feline", "canine", "hamster", "bird", "fish"],
+    "Food": ["food", "eat", "restaurant", "cook", "recipe", "dinner", "lunch", "breakfast", "snack", "hungry", "delicious", "tasty", "meal", "kitchen", "chef", "bake"],
+    "Movies": ["movie", "film", "cinema", "actor", "actress", "director", "hollywood", "scene", "plot", "character", "watch", "show", "series", "tv", "netflix", "drama", "comedy"],
+    "Music": ["music", "song", "band", "singer", "concert", "album", "listen", "guitar", "piano", "drum", "melody", "rhythm", "lyrics", "spotify", "playlist"],
+    "Sports": ["sport", "game", "team", "match", "ball", "score", "win", "lose", "player", "coach", "football", "soccer", "basketball", "baseball", "tennis", "athlete"],
+    "School": ["school", "class", "teacher", "student", "homework", "exam", "test", "grade", "study", "learn", "college", "university", "campus", "subject", "math", "science"],
+    "Family": ["family", "mom", "dad", "mother", "father", "sister", "brother", "sibling", "grandma", "grandpa", "cousin", "aunt", "uncle", "parent", "child", "kids"],
+    "Work": ["work", "job", "office", "career", "boss", "colleague", "meeting", "project", "deadline", "salary", "interview", "resume", "business"],
+    "Hobbies": ["hobby", "craft", "art", "drawing", "painting", "reading", "book", "writing", "photography", "collecting", "knitting", "sewing"]
   ]
 
   // Enhanced thresholds
@@ -364,14 +373,18 @@ class AnalysisManager {
     
     private func detectTopic(_ text: String) -> String? {
         let lower = text.lowercased()
+        var topicScores: [String: Int] = [:]
+        
         for (topic, keywords) in topicKeywords {
             for keyword in keywords {
                 if lower.contains(keyword) {
-                    return topic
+                    topicScores[topic, default: 0] += 1
                 }
             }
         }
-        return nil
+        
+        // Return topic with the highest match count
+        return topicScores.max { $0.value < $1.value }?.key
     }
     
     private func generateTitle(topic: String?, emotion: String?, tone: String, keywords: [String]) -> String {
@@ -421,17 +434,26 @@ class AnalysisManager {
     private func generateConversationStarters(topic: String?, socialCues: [String], keywords: [String]) -> [String] {
         var starters: [String] = []
         
+        // Use detected keywords for specific starters
         if let firstKeyword = keywords.first {
             if keywords.count >= 2 {
-                starters.append("You mentioned \(firstKeyword) and \(keywords[1]). What are your thoughts on how they relate?")
+                starters.append("You mentioned \(firstKeyword) and \(keywords[1]). How do you see them connecting?")
             }
             starters.append("Could you tell me more about your experience with \(firstKeyword)?")
-            if firstKeyword.lowercased() == "computer" || firstKeyword.lowercased() == "technology" {
+            
+            // Context-aware starters based on keywords
+            let lowerKeyword = firstKeyword.lowercased()
+            if ["computer", "technology", "ai", "phone"].contains(where: { lowerKeyword.contains($0) }) {
                  starters.append("What's your favorite piece of technology that's come out this year?")
+            } else if ["cat", "dog", "pet"].contains(where: { lowerKeyword.contains($0) }) {
+                starters.append("Do you have any funny stories about your pet?")
+            } else if ["movie", "film", "show"].contains(where: { lowerKeyword.contains($0) }) {
+                starters.append("What's the best thing you've watched recently?")
             }
         }
         
-        if let topic = topic, starters.isEmpty {
+        // Topic-based starters
+        if let topic = topic {
             switch topic {
             case "Space":
                 starters.append("What do you find most fascinating about the universe?")
@@ -439,23 +461,58 @@ class AnalysisManager {
             case "Technology":
                 starters.append("How do you think AI is going to change your daily life?")
                 starters.append("What's a new piece of tech you're excited about?")
+            case "Pets":
+                starters.append("Are you more of a cat person or a dog person?")
+                starters.append("What's the most unique pet you've ever met?")
+            case "Food":
+                starters.append("What's your absolute favorite comfort food?")
+                starters.append("Do you enjoy cooking, or do you prefer eating out?")
+            case "Movies":
+                starters.append("What genre of movies do you enjoy the most?")
+                starters.append("Is there a movie you could watch over and over again?")
+            case "Music":
+                starters.append("Who is your favorite artist or band right now?")
+                starters.append("Do you play any instruments, or would you like to learn one?")
+            case "Sports":
+                starters.append("Do you follow any specific sports teams?")
+                starters.append("What's your favorite way to stay active?")
+            case "Travel":
+                starters.append("If you could go anywhere in the world right now, where would it be?")
+                starters.append("What was your most memorable trip?")
+            case "School":
+                starters.append("What is your favorite subject to study?")
+                starters.append("How do you usually prepare for big exams?")
+            case "Family":
+                starters.append("Do you have any fun family traditions?")
+                starters.append("Who in your family has had the biggest influence on you?")
+            case "Work":
+                starters.append("What's the most rewarding part of your job?")
+                starters.append("How do you like to relax after a long work day?")
+            case "Hobbies":
+                starters.append("How did you get started with your hobby?")
+                starters.append("Is there a new hobby you'd like to try soon?")
             default:
                 starters.append("What's your favorite part about \(topic.lowercased())?")
+                starters.append("How did you first get interested in \(topic.lowercased())?")
             }
         }
         
+        // Social Cue adjustments
         if socialCues.contains("Agreeable") && starters.count < 3 {
             starters.append("I'm glad we agree on that! What else is on your mind?")
         } else if socialCues.contains("Disagreeing") && starters.count < 3 {
             starters.append("That's an interesting perspective. Tell me more about why you feel that way.")
         }
         
+        // Fallback generic starters
         if starters.count < 2 {
             starters.append("What's something interesting that happened to you recently?")
             starters.append("If you could learn any new skill instantly, what would it be?")
+            starters.append("What are you looking forward to this week?")
         }
         
-        return Array(starters.prefix(3))
+        // Return a shuffled subset to keep it fresh
+        return Array(starters.shuffled().prefix(3))
     }
     
     private func extractKeywords(_ text: String) -> [String] {
