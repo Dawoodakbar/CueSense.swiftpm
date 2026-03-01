@@ -133,8 +133,9 @@ struct HomeView: View {
             }
         }
         .sheet(isPresented: $showingInfo) {
-            // Using WelcomeView as info sheet since OnboardingWelcomeView is deprecated
-            WelcomeView(showWelcomeScreen: $showingInfo)
+            OnboardingWelcomeView(showNextButton: false) {
+                showingInfo = false
+            }
         }
     }
 }
