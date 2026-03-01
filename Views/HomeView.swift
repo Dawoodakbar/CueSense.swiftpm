@@ -5,15 +5,21 @@ import SwiftData
 struct HomeView: View {
     @EnvironmentObject var speechManager: SpeechManager
     @State private var showingInfo = false
+    @State private var isLoading = false
     let startSession: () -> Void
     
     var body: some View {
         ZStack {
             // Background image from assets
-            Image("background")
-                .resizable()
-                .aspectRatio(contentMode: .fill)
-                .ignoresSafeArea()
+            if let bgImage = UIImage(named: "background") {
+                Image(uiImage: bgImage)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .ignoresSafeArea()
+            } else {
+                LinearGradient(colors: [.white, .blue.opacity(0.1)], startPoint: .top, endPoint: .bottom)
+                    .ignoresSafeArea()
+            }
             
             VStack(spacing: 30) {
                 Spacer()
@@ -84,8 +90,19 @@ struct HomeView: View {
                 
                 // Start Session Button
                 Button(action: {
-                    speechManager.startRecording()
-                    startSession()
+                    withAnimation {
+                        isLoading = true
+                    }
+                    
+                    // Simulate loading delay
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                        speechManager.startRecording()
+                        startSession()
+                        // Reset loading state after transition
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            isLoading = false
+                        }
+                    }
                 }) {
                     HStack(spacing: 12) {
                         Image(systemName: "mic.fill")
@@ -108,11 +125,16 @@ struct HomeView: View {
                 Spacer()
                     .frame(height: 50)
             }
+            
+            if isLoading {
+                LoadingView()
+                    .transition(.opacity)
+                    .zIndex(1)
+            }
         }
         .sheet(isPresented: $showingInfo) {
-            OnboardingWelcomeView(showNextButton: false) {
-                showingInfo = false
-            }
+            // Using WelcomeView as info sheet since OnboardingWelcomeView is deprecated
+            WelcomeView(showWelcomeScreen: $showingInfo)
         }
     }
 }

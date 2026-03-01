@@ -2,6 +2,7 @@ import SwiftUI
 
 struct WelcomeView: View {
     @Binding var showWelcomeScreen: Bool
+    var onContinue: (() -> Void)? = nil // Optional closure for onboarding flow
     @State private var showLoading = false
     @State private var showDetailSheet = false
     @State private var selectedDetail: String? = nil
@@ -162,14 +163,20 @@ struct WelcomeView: View {
                 
                 // Get Started Button
                 Button(action: {
-                    withAnimation {
-                        showLoading = true
-                    }
-                    
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                        hasCompletedOnboarding = true
+                    if let onContinue = onContinue {
+                        // If used in onboarding flow, just trigger the callback
+                        onContinue()
+                    } else {
+                        // Standard flow
                         withAnimation {
-                            showWelcomeScreen = false
+                            showLoading = true
+                        }
+                        
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                            hasCompletedOnboarding = true
+                            withAnimation {
+                                showWelcomeScreen = false
+                            }
                         }
                     }
                 }) {

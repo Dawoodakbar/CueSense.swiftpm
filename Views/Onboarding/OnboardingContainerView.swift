@@ -17,11 +17,11 @@ struct OnboardingContainerView: View {
     var body: some View {
         ZStack {
             if currentPage == 0 {
-                OnboardingWelcomeView {
+                WelcomeView(showWelcomeScreen: .constant(true), onContinue: {
                     withAnimation {
                         currentPage = 1
                     }
-                }
+                })
                 .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading)))
             } else {
                 OnboardingProfileView(
