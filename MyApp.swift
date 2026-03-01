@@ -11,9 +11,6 @@ struct MyApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(speechManager)
-                .fullScreenCover(isPresented: .constant(!hasCompletedOnboarding)) {
-                    OnboardingContainerView()
-                }
         }
         .modelContainer(for: [InteractionSession.self, UserProfile.self])
     }

@@ -5,6 +5,7 @@ struct WelcomeView: View {
     @State private var showLoading = false
     @State private var showDetailSheet = false
     @State private var selectedDetail: String? = nil
+    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
 
     var body: some View {
         if showLoading {
@@ -29,12 +30,12 @@ struct WelcomeView: View {
                         )
                     
                     VStack(spacing: 8) {
-                        Text("Welcome to CueSense")
+                        Text(hasCompletedOnboarding ? "Welcome Back" : "Welcome to CueSense")
                             .font(.system(size: 32, weight: .bold, design: .rounded))
                             .multilineTextAlignment(.center)
                             .foregroundStyle(.primary)
                         
-                        Text("Your gentle conversation guide")
+                        Text(hasCompletedOnboarding ? "Ready for another session?" : "Your gentle conversation guide")
                             .font(.body)
                             .foregroundStyle(.secondary)
                     }
@@ -166,12 +167,13 @@ struct WelcomeView: View {
                     }
                     
                     DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                        hasCompletedOnboarding = true
                         withAnimation {
                             showWelcomeScreen = false
                         }
                     }
                 }) {
-                    Text("Get Started")
+                    Text(hasCompletedOnboarding ? "Continue" : "Get Started")
                         .font(.headline)
                         .fontWeight(.bold)
                         .foregroundColor(.white)
